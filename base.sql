@@ -114,7 +114,7 @@ CREATE TABLE routes (
 CREATE TABLE tariffs (
     id SERIAL PRIMARY KEY,
     city_id INTEGER REFERENCES cities(id),
-    trip_type trip_type_enum, -- ENUM: 'urban', 'intercity', 'shared', 'economy'
+    trip_type trip_type_enum,
     price_per_km NUMERIC(10,2) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -144,7 +144,7 @@ CREATE TABLE trips (
 CREATE TABLE payments (
     id SERIAL PRIMARY KEY,
     amount NUMERIC(12,2) NOT NULL,
-    payment_type payment_type_enum, -- ENUM: 'cash', 'electronic'
+    payment_type payment_type_enum,
     payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     status payment_status_enum,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -157,7 +157,7 @@ CREATE TABLE discount_codes (
     id SERIAL PRIMARY KEY,
     code VARCHAR(50) UNIQUE NOT NULL,
     value NUMERIC(8,2) NOT NULL,
-    type discount_code_type_enum, -- 'amount' or 'percent'
+    type discount_code_type_enum,
     expiry_date DATE,
     status discount_code_status_enum, -- ENUM: 'used', 'expired', 'active'
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -204,7 +204,7 @@ CREATE TABLE feedbacks (
 CREATE TABLE driver_applications (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id),
-    status driver_application_status_enum, -- ENUM: 'pending', 'accepted', 'rejected'
+    status driver_application_status_enum,
     admin_id INTEGER REFERENCES admins(user_id),
     review_date TIMESTAMP,
     comments TEXT,
@@ -231,7 +231,7 @@ CREATE TABLE files (
 CREATE TABLE documents (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id),
-    type document_type_enum, -- e.g. 'license', 'car_registration'
+    type document_type_enum,
     file_id INTEGER REFERENCES files(id) NOT NULL,
     upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     status document_status_enum,
@@ -245,7 +245,7 @@ CREATE TABLE transactions (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id),
     amount NUMERIC(15,2) NOT NULL,
-    type transaction_type_enum, -- 'deposit', 'withdraw', 'trip_payment', etc.
+    type transaction_type_enum,
     date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     payment_id INTEGER REFERENCES payments(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
