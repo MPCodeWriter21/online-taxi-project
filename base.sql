@@ -1,24 +1,56 @@
 create extension postgis;
 
+-- ENUM for status in users table (assuming possible values)
+CREATE TYPE user_status_enum AS ENUM ('active', 'inactive', 'banned');
+
+-- ENUM for approval_status in drivers table
+CREATE TYPE driver_approval_status_enum AS ENUM ('pending', 'approved', 'rejected');
+
+-- ENUM for access_level in admins table (assuming possible values)
+CREATE TYPE admin_access_level_enum AS ENUM ('normal', 'superuser');
+
+-- ENUM for trip_type in tariffs and trips table
+CREATE TYPE trip_type_enum AS ENUM ('urban', 'intercity', 'shared', 'economy');
+
+-- ENUM for trip_status in trips table
+CREATE TYPE trip_status_enum AS ENUM ('pending', 'completed', 'canceled', 'started', 'waiting', 'failed');
+
+-- ENUM for payment_type in payments table
+CREATE TYPE payment_type_enum AS ENUM ('cash', 'electronic');
+
+-- ENUM for status in payments table
+CREATE TYPE payment_status_enum AS ENUM ('pending', 'completed', 'failed', 'canceled');
+
+-- ENUM for discount code type in discount_codes table
+CREATE TYPE discount_code_type_enum AS ENUM ('amount', 'percent');
+
+-- ENUM for status in discount_codes table
+CREATE TYPE discount_code_status_enum AS ENUM ('used', 'expired', 'active');
+
+-- ENUM for status in driver_applications table
+CREATE TYPE driver_application_status_enum AS ENUM ('pending', 'accepted', 'rejected');
+
+-- ENUM for document type in documents table (add as needed)
+CREATE TYPE document_type_enum AS ENUM ('license', 'car_registration', 'insurance', 'identity', 'other');
+
+-- ENUM for document status in documents table
+CREATE TYPE document_status_enum AS ENUM ('pending', 'approved', 'rejected');
+
+-- ENUM for transaction type in transactions table
+CREATE TYPE transaction_type_enum AS ENUM ('deposit', 'withdraw', 'trip_payment', 'refund', 'adjustment');
+
+-- ENUM for trip status history
+CREATE TYPE trip_status_history_status_enum AS ENUM ('pending', 'started', 'waiting', 'completed', 'canceled', 'failed', 'reopened');
 
 -- Users Table: Base for all user types (Passenger, Driver, Admin)
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    phone VARCHAR(20) UNIQUE,
+    name VARCHAR(255) NOT NULL,
+    phone VARCHAR(20) UNIQUE NOT NULL,
     email VARCHAR(100) UNIQUE,
-    user_type VARCHAR(20) NOT NULL, -- ENUM: 'passenger', 'driver', 'admin'
     registration_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     wallet_balance NUMERIC(15,2) DEFAULT 0,
-    status VARCHAR(20) DEFAULT 'active',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP
-);
-
--- Passengers Table (extension of users)
-CREATE TABLE passengers (
-    user_id INTEGER PRIMARY KEY REFERENCES users(id),
+    status user_status_enum,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP
@@ -29,7 +61,7 @@ CREATE TABLE drivers (
     user_id INTEGER PRIMARY KEY REFERENCES users(id),
     license_number VARCHAR(50),
     car_info JSONB,
-    approval_status VARCHAR(20) DEFAULT 'pending',
+    approval_status driver_approval_status_enum,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP
@@ -38,7 +70,7 @@ CREATE TABLE drivers (
 -- Admin Table (extension of users)
 CREATE TABLE admins (
     user_id INTEGER PRIMARY KEY REFERENCES users(id),
-    access_level VARCHAR(20) DEFAULT 'normal',
+    access_level admin_access_level_enum,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP
@@ -48,7 +80,17 @@ CREATE TABLE admins (
 CREATE TABLE cities (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
+    province_id INTEGER REFERENCES province(id) NOT NULL,
     coverage_status BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
+);
+
+
+CREATE TABLE province (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP
@@ -61,7 +103,7 @@ CREATE TABLE routes (
     end_city_id INTEGER REFERENCES cities(id),
     start_location geometry(Point, 4326),
     end_location geometry(Point, 4326),
-    is_urban BOOLEAN,
+    is_return BOOLEAN,
     distance_km NUMERIC(8,2),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -72,9 +114,8 @@ CREATE TABLE routes (
 CREATE TABLE tariffs (
     id SERIAL PRIMARY KEY,
     city_id INTEGER REFERENCES cities(id),
-    trip_type VARCHAR(30), -- ENUM: 'urban', 'intercity', 'shared', 'economy'
+    trip_type trip_type_enum, -- ENUM: 'urban', 'intercity', 'shared', 'economy'
     price_per_km NUMERIC(10,2) NOT NULL,
-    effective_date DATE NOT NULL,
     end_date DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -84,13 +125,13 @@ CREATE TABLE tariffs (
 -- Trips Table
 CREATE TABLE trips (
     id SERIAL PRIMARY KEY,
-    passenger_id INTEGER REFERENCES passengers(user_id),
+    passenger_id INTEGER REFERENCES users(id),
     driver_id INTEGER REFERENCES drivers(user_id),
     route_id INTEGER REFERENCES routes(id),
     start_time TIMESTAMP,
     end_time TIMESTAMP,
-    trip_status VARCHAR(30) DEFAULT 'pending', -- ENUM: 'completed', 'canceled', etc.
-    trip_type VARCHAR(30),
+    trip_status trip_status_enum,
+    trip_type trip_type_enum,
     payment_id INTEGER,
     discount_code_id INTEGER,
     start_location geometry(Point, 4326),
@@ -103,11 +144,10 @@ CREATE TABLE trips (
 -- Payments Table
 CREATE TABLE payments (
     id SERIAL PRIMARY KEY,
-    trip_id INTEGER REFERENCES trips(id),
     amount NUMERIC(12,2) NOT NULL,
-    payment_type VARCHAR(15), -- ENUM: 'cash', 'electronic'
+    payment_type payment_type_enum, -- ENUM: 'cash', 'electronic'
     payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status VARCHAR(20) DEFAULT 'pending',
+    status payment_status_enum,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP
@@ -118,10 +158,19 @@ CREATE TABLE discount_codes (
     id SERIAL PRIMARY KEY,
     code VARCHAR(50) UNIQUE NOT NULL,
     value NUMERIC(8,2) NOT NULL,
-    type VARCHAR(10) DEFAULT 'amount', -- 'amount' or 'percent'
+    type discount_code_type_enum, -- 'amount' or 'percent'
     expiry_date DATE,
-    status VARCHAR(20) DEFAULT 'active', -- ENUM: 'used', 'expired', 'active'
-    assigned_to_user_id INTEGER REFERENCES users(id),
+    status discount_code_status_enum, -- ENUM: 'used', 'expired', 'active'
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
+);
+
+-- Mapping table to assign discount codes to multiple users
+CREATE TABLE discount_user (
+    id SERIAL PRIMARY KEY,
+    discount_code_id INTEGER NOT NULL REFERENCES discount_codes(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP
@@ -134,7 +183,6 @@ CREATE TABLE messages (
     receiver_id INTEGER REFERENCES users(id),
     trip_id INTEGER REFERENCES trips(id),
     content TEXT,
-    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP
@@ -157,8 +205,7 @@ CREATE TABLE feedbacks (
 CREATE TABLE driver_applications (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id),
-    submission_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status VARCHAR(20) DEFAULT 'pending', -- ENUM: 'pending', 'accepted', 'rejected'
+    status driver_application_status_enum, -- ENUM: 'pending', 'accepted', 'rejected'
     admin_id INTEGER REFERENCES admins(user_id),
     review_date TIMESTAMP,
     comments TEXT,
@@ -167,14 +214,28 @@ CREATE TABLE driver_applications (
     deleted_at TIMESTAMP
 );
 
--- Documents Table
+-- File storage table
+CREATE TABLE files (
+    id SERIAL PRIMARY KEY,
+    file_path VARCHAR(255) NOT NULL,
+    file_name VARCHAR(255),
+    file_size INTEGER,
+    mime_type VARCHAR(100),
+    uploaded_by INTEGER REFERENCES users(id),
+    upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
+);
+
+-- Updated documents table, now referencing files table
 CREATE TABLE documents (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id),
-    type VARCHAR(30), -- e.g. 'license', 'car_registration'
-    file_path VARCHAR(255),
+    type document_type_enum, -- e.g. 'license', 'car_registration'
+    file_id INTEGER REFERENCES files(id) NOT NULL,
     upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status VARCHAR(20) DEFAULT 'pending',
+    status document_status_enum,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP
@@ -185,7 +246,7 @@ CREATE TABLE transactions (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id),
     amount NUMERIC(15,2) NOT NULL,
-    type VARCHAR(20), -- 'deposit', 'withdraw', 'trip_payment', etc.
+    type transaction_type_enum, -- 'deposit', 'withdraw', 'trip_payment', etc.
     date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     payment_id INTEGER REFERENCES payments(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -193,20 +254,6 @@ CREATE TABLE transactions (
     deleted_at TIMESTAMP
 );
 
--- Trip Status History Table (Optional, for advanced status tracking)
-CREATE TABLE trip_status_history (
-    id SERIAL PRIMARY KEY,
-    trip_id INTEGER REFERENCES trips(id),
-    status VARCHAR(30),
-    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP
-);
-
 -- Indexes for performance (example)
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_drivers_status ON drivers(approval_status);
-CREATE INDEX idx_trips_status ON trips(trip_status);
 CREATE INDEX idx_trips_start_location ON trips USING GIST(start_location);
 CREATE INDEX idx_trips_end_location ON trips USING GIST(end_location);
