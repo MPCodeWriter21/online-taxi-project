@@ -116,7 +116,6 @@ CREATE TABLE tariffs (
     city_id INTEGER REFERENCES cities(id),
     trip_type trip_type_enum, -- ENUM: 'urban', 'intercity', 'shared', 'economy'
     price_per_km NUMERIC(10,2) NOT NULL,
-    end_date DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP
