@@ -1,46 +1,25 @@
-create extension postgis;
+-- Enables PostGIS geospatial functions
+CREATE EXTENSION IF NOT EXISTS postgis;
 
--- ENUM for status in users table (assuming possible values)
+-- ENUM TYPE DEFINITIONS --
+
 CREATE TYPE user_status_enum AS ENUM ('active', 'inactive', 'banned');
-
--- ENUM for approval_status in drivers table
 CREATE TYPE driver_approval_status_enum AS ENUM ('pending', 'approved', 'rejected');
-
--- ENUM for access_level in admins table (assuming possible values)
 CREATE TYPE admin_access_level_enum AS ENUM ('normal', 'superuser');
-
--- ENUM for trip_type in tariffs and trips table
 CREATE TYPE trip_type_enum AS ENUM ('urban', 'intercity', 'shared', 'economy');
-
--- ENUM for trip_status in trips table
 CREATE TYPE trip_status_enum AS ENUM ('pending', 'completed', 'canceled', 'started', 'waiting', 'failed');
-
--- ENUM for payment_type in payments table
 CREATE TYPE payment_type_enum AS ENUM ('cash', 'electronic');
-
--- ENUM for status in payments table
 CREATE TYPE payment_status_enum AS ENUM ('pending', 'completed', 'failed', 'canceled');
-
--- ENUM for discount code type in discount_codes table
 CREATE TYPE discount_code_type_enum AS ENUM ('amount', 'percent');
-
--- ENUM for status in discount_codes table
 CREATE TYPE discount_code_status_enum AS ENUM ('used', 'expired', 'active');
-
--- ENUM for status in driver_applications table
 CREATE TYPE driver_application_status_enum AS ENUM ('pending', 'accepted', 'rejected');
-
--- ENUM for document type in documents table (add as needed)
 CREATE TYPE document_type_enum AS ENUM ('license', 'car_registration', 'insurance', 'identity', 'other');
-
--- ENUM for document status in documents table
 CREATE TYPE document_status_enum AS ENUM ('pending', 'approved', 'rejected');
-
--- ENUM for transaction type in transactions table
 CREATE TYPE transaction_type_enum AS ENUM ('deposit', 'withdraw', 'trip_payment', 'refund', 'adjustment');
-
--- ENUM for trip status history
 CREATE TYPE trip_status_history_status_enum AS ENUM ('pending', 'started', 'waiting', 'completed', 'canceled', 'failed', 'reopened');
+
+
+-- TABLE CREATION --
 
 -- Users Table: Base for all user types (Passenger, Driver, Admin)
 CREATE TABLE users (
@@ -76,6 +55,16 @@ CREATE TABLE admins (
     deleted_at TIMESTAMP
 );
 
+-- ADJUSTMENT: 'province' table moved before 'cities' table to respect foreign key dependency.
+-- Province Table
+CREATE TABLE province (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
+);
+
 -- Cities Table
 CREATE TABLE cities (
     id SERIAL PRIMARY KEY,
@@ -87,22 +76,13 @@ CREATE TABLE cities (
     deleted_at TIMESTAMP
 );
 
-
-CREATE TABLE province (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP
-);
-
 -- Routes Table (with PostGIS geometry for start & end)
 CREATE TABLE routes (
     id SERIAL PRIMARY KEY,
     start_city_id INTEGER REFERENCES cities(id),
     end_city_id INTEGER REFERENCES cities(id),
-    start_location geometry(Point, 4326),
-    end_location geometry(Point, 4326),
+    start_location GEOMETRY(Point, 4326),
+    end_location GEOMETRY(Point, 4326),
     is_return BOOLEAN,
     distance_km NUMERIC(8,2),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -121,26 +101,7 @@ CREATE TABLE tariffs (
     deleted_at TIMESTAMP
 );
 
--- Trips Table
-CREATE TABLE trips (
-    id SERIAL PRIMARY KEY,
-    passenger_id INTEGER REFERENCES users(id),
-    driver_id INTEGER REFERENCES drivers(user_id),
-    route_id INTEGER REFERENCES routes(id),
-    start_time TIMESTAMP,
-    end_time TIMESTAMP,
-    trip_status trip_status_enum,
-    trip_type trip_type_enum,
-    payment_id INTEGER,
-    discount_code_id INTEGER,
-    start_location geometry(Point, 4326),
-    end_location geometry(Point, 4326),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP
-);
-
--- Payments Table
+-- Payments Table (defined before Trips)
 CREATE TABLE payments (
     id SERIAL PRIMARY KEY,
     amount NUMERIC(12,2) NOT NULL,
@@ -152,14 +113,34 @@ CREATE TABLE payments (
     deleted_at TIMESTAMP
 );
 
--- Discount Codes Table
+-- Discount Codes Table (defined before Trips)
 CREATE TABLE discount_codes (
     id SERIAL PRIMARY KEY,
     code VARCHAR(50) UNIQUE NOT NULL,
     value NUMERIC(8,2) NOT NULL,
     type discount_code_type_enum,
     expiry_date DATE,
-    status discount_code_status_enum, -- ENUM: 'used', 'expired', 'active'
+    status discount_code_status_enum,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
+);
+
+-- Trips Table
+CREATE TABLE trips (
+    id SERIAL PRIMARY KEY,
+    passenger_id INTEGER REFERENCES users(id),
+    driver_id INTEGER REFERENCES drivers(user_id),
+    route_id INTEGER REFERENCES routes(id),
+    start_time TIMESTAMP,
+    end_time TIMESTAMP,
+    trip_status trip_status_enum,
+    trip_type trip_type_enum,
+    start_location GEOMETRY(Point, 4326),
+    end_location GEOMETRY(Point, 4326),
+    -- ADJUSTMENT: Added foreign key constraints for payment_id and discount_code_id
+    payment_id INTEGER REFERENCES payments(id),
+    discount_code_id INTEGER REFERENCES discount_codes(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP
@@ -253,6 +234,32 @@ CREATE TABLE transactions (
     deleted_at TIMESTAMP
 );
 
--- Indexes for performance (example)
+-- Table for tracking granular trip status changes
+CREATE TABLE trip_status_history (
+    id SERIAL PRIMARY KEY,
+    trip_id INTEGER NOT NULL REFERENCES trips(id),
+    status trip_status_history_status_enum NOT NULL,
+    reason VARCHAR(255), -- e.g., 'Heavy traffic', 'Passenger delay'
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table for tracking real-time driver locations for the admin dashboard
+CREATE TABLE driver_locations (
+    id SERIAL PRIMARY KEY,
+    driver_id INTEGER NOT NULL REFERENCES drivers(user_id),
+    current_location GEOMETRY(Point, 4326) NOT NULL,
+    recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- INDEXES --
+-- GIST indexes for efficient geospatial queries
 CREATE INDEX idx_trips_start_location ON trips USING GIST(start_location);
 CREATE INDEX idx_trips_end_location ON trips USING GIST(end_location);
+CREATE INDEX idx_driver_locations_current_location ON driver_locations USING GIST(current_location);
+
+-- Standard indexes for frequently queried columns
+CREATE INDEX idx_trips_passenger_id ON trips(passenger_id);
+CREATE INDEX idx_trips_driver_id ON trips(driver_id);
+CREATE INDEX idx_trips_trip_status ON trips(trip_status);
+CREATE INDEX idx_users_phone ON users(phone);
