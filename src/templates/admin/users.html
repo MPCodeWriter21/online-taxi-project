@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Users Management - Admin Dashboard</title>
+    <link href="/static/libraries/bootstrap-5.3.3/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/libraries/fontawesome-6.7.1/css/all.min.css" rel="stylesheet">
+    <link href="/css/admin/base.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Include the base admin sidebar and header -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h4><i class="fas fa-user-shield me-2"></i>Admin Panel</h4>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/admin/" class="nav-link">
+                <i class="fas fa-chart-bar me-2"></i>Dashboard
+            </a>
+            <a href="/admin/users/" class="nav-link active">
+                <i class="fas fa-users me-2"></i>Users
+            </a>
+            <a href="/admin/drivers/" class="nav-link">
+                <i class="fas fa-car me-2"></i>Drivers
+            </a>
+            <a href="/admin/trips/" class="nav-link">
+                <i class="fas fa-route me-2"></i>Trips
+            </a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <div class="container-fluid p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-users me-2"></i>Users Management</h2>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                    <i class="fas fa-plus me-1"></i>Add User
+                </button>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <div id="usersTable">
+                        <div class="text-center py-5">
+                            <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
+                            <p class="mt-2 text-muted">Loading users...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/libraries/bootstrap-5.3.3/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/admin/dashboard.js"></script>
+</body>
+</html>

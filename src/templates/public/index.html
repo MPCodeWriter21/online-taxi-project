@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Taxi Management System</title>
+    <link href="/static/libraries/bootstrap-5.3.3/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/libraries/fontawesome-6.7.1/css/all.min.css" rel="stylesheet">
+    <style>
+        .hero-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 100px 0;
+        }
+        .feature-card {
+            transition: transform 0.3s;
+        }
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-taxi me-2"></i>
+                Taxi Management
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/docs">
+                    <i class="fas fa-book me-1"></i>
+                    API Docs
+                </a>
+                <a class="nav-link" href="/admin/">
+                    <i class="fas fa-user-shield me-1"></i>
+                    Admin
+                </a>
+                <a class="nav-link" href="/driver/">
+                    <i class="fas fa-car me-1"></i>
+                    Driver
+                </a>
+                <a class="nav-link" href="/user/">
+                    <i class="fas fa-user me-1"></i>
+                    Passenger
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="container text-center">
+            <h1 class="display-4 fw-bold mb-4">
+                <i class="fas fa-taxi me-3"></i>
+                Online Taxi Management System
+            </h1>
+            <p class="lead mb-5">
+                A comprehensive FastAPI-based taxi booking and management platform
+            </p>
+            <div class="row">
+                <div class="col-md-4">
+                    <i class="fas fa-users fa-3x mb-3"></i>
+                    <h5>User Management</h5>
+                </div>
+                <div class="col-md-4">
+                    <i class="fas fa-route fa-3x mb-3"></i>
+                    <h5>Trip Management</h5>
+                </div>
+                <div class="col-md-4">
+                    <i class="fas fa-credit-card fa-3x mb-3"></i>
+                    <h5>Payment Processing</h5>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="py-5">
+        <div class="container">
+            <h2 class="text-center mb-5">System Features</h2>
+
+            <div class="row g-4">
+                <!-- Passenger Features -->
+                <div class="col-lg-4">
+                    <div class="card feature-card h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-user fa-3x text-primary mb-3"></i>
+                            <h5 class="card-title">Passenger Portal</h5>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success me-2"></i>Account registration</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Trip booking</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Trip history</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Wallet management</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Real-time tracking</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Driver Features -->
+                <div class="col-lg-4">
+                    <div class="card feature-card h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-car fa-3x text-success mb-3"></i>
+                            <h5 class="card-title">Driver Portal</h5>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success me-2"></i>Driver registration</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Trip acceptance</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Earnings tracking</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Profile management</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Analytics dashboard</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Features -->
+                <div class="col-lg-4">
+                    <div class="card feature-card h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-user-shield fa-3x text-warning mb-3"></i>
+                            <h5 class="card-title">Admin Portal</h5>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success me-2"></i>User management</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Driver approval</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Trip monitoring</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Payment oversight</li>
+                                <li><i class="fas fa-check text-success me-2"></i>System analytics</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- API Information -->
+    <section class="py-5 bg-light">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-8 mx-auto text-center">
+                    <h2 class="mb-4">RESTful API</h2>
+                    <p class="lead mb-4">
+                        Complete FastAPI backend with comprehensive endpoints for all taxi management operations.
+                    </p>
+
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <div class="card border-primary">
+                                <div class="card-body text-center">
+                                    <h6 class="text-primary">Users API</h6>
+                                    <small>/api/v1/users</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-success">
+                                <div class="card-body text-center">
+                                    <h6 class="text-success">Driver API</h6>
+                                    <small>/driver/api</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-warning">
+                                <div class="card-body text-center">
+                                    <h6 class="text-warning">Admin API</h6>
+                                    <small>/admin/api</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-info">
+                                <div class="card-body text-center">
+                                    <h6 class="text-info">Documentation</h6>
+                                    <small>/docs</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <a href="/docs" class="btn btn-primary btn-lg me-3">
+                            <i class="fas fa-book me-2"></i>
+                            View API Documentation
+                        </a>
+                        <a href="/redoc" class="btn btn-outline-primary btn-lg">
+                            <i class="fas fa-file-alt me-2"></i>
+                            ReDoc Documentation
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Technology Stack -->
+    <section class="py-5">
+        <div class="container">
+            <h2 class="text-center mb-5">Technology Stack</h2>
+
+            <div class="row text-center">
+                <div class="col-md-2">
+                    <i class="fab fa-python fa-3x text-primary mb-2"></i>
+                    <h6>Python</h6>
+                </div>
+                <div class="col-md-2">
+                    <i class="fas fa-lightning fa-3x text-warning mb-2"></i>
+                    <h6>FastAPI</h6>
+                </div>
+                <div class="col-md-2">
+                    <i class="fas fa-database fa-3x text-info mb-2"></i>
+                    <h6>PostgreSQL</h6>
+                </div>
+                <div class="col-md-2">
+                    <i class="fas fa-map fa-3x text-success mb-2"></i>
+                    <h6>PostGIS</h6>
+                </div>
+                <div class="col-md-2">
+                    <i class="fab fa-js fa-3x text-warning mb-2"></i>
+                    <h6>JavaScript</h6>
+                </div>
+                <div class="col-md-2">
+                    <i class="fab fa-bootstrap fa-3x text-purple mb-2"></i>
+                    <h6>Bootstrap</h6>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white text-center py-4">
+        <div class="container">
+            <p class="mb-0">
+                &copy; 2025 Online Taxi Management System.
+                Built with <i class="fas fa-heart text-danger"></i> using FastAPI
+            </p>
+        </div>
+    </footer>
+
+    <script src="/static/libraries/bootstrap-5.3.3/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

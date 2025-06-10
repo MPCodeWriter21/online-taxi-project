@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}User Dashboard{% endblock %} - Taxi Service</title>
+    <link href="/static/libraries/bootstrap-5.3.3/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/libraries/fontawesome-6.7.1/css/all.min.css" rel="stylesheet">
+    <link href="/static/libraries/leaflet-1.9.4/leaflet.css" rel="stylesheet">
+    <link href="/css/user/base.css" rel="stylesheet">
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="user-dashboard">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/user/">
+                <i class="fas fa-taxi me-2 text-primary"></i>
+                <strong>TaxiGo</strong>
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/user/">
+                            <i class="fas fa-home me-1"></i>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/user/trips/">
+                            <i class="fas fa-route me-1"></i>
+                            My Trips
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/user/wallet/">
+                            <i class="fas fa-wallet me-1"></i>
+                            Wallet
+                        </a>
+                    </li>
+                </ul>
+
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <span class="navbar-text me-3">
+                            <i class="fas fa-wallet me-1"></i>
+                            Balance: $<span id="walletBalance">0.00</span>
+                        </span>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-1"></i>
+                            <span id="userName">User</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/user/profile/">My Profile</a></li>
+                            <li><a class="dropdown-item" href="/user/settings/">Settings</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/api/v1/auth/logout">Logout</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid py-4">
+        {% block content %}
+        <div class="row">
+            <!-- Trip Booking Section -->
+            <div class="col-lg-8">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-map-marker-alt me-2"></i>
+                            Book a Ride
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="bookingForm">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="pickupLocation" class="form-label">
+                                        <i class="fas fa-map-marker-alt text-success me-1"></i>
+                                        Pickup Location
+                                    </label>
+                                    <input type="text" class="form-control" id="pickupLocation"
+                                           placeholder="Enter pickup address" required>
+                                    <input type="hidden" id="pickupLat">
+                                    <input type="hidden" id="pickupLng">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="dropoffLocation" class="form-label">
+                                        <i class="fas fa-map-marker-alt text-danger me-1"></i>
+                                        Dropoff Location
+                                    </label>
+                                    <input type="text" class="form-control" id="dropoffLocation"
+                                           placeholder="Enter destination address" required>
+                                    <input type="hidden" id="dropoffLat">
+                                    <input type="hidden" id="dropoffLng">
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="tripType" class="form-label">Trip Type</label>
+                                    <select class="form-select" id="tripType">
+                                        <option value="standard">Standard</option>
+                                        <option value="premium">Premium</option>
+                                        <option value="shared">Shared</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="scheduleTime" class="form-label">Schedule (Optional)</label>
+                                    <input type="datetime-local" class="form-control" id="scheduleTime">
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="discountCode" class="form-label">Discount Code</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="discountCode"
+                                               placeholder="Enter promo code">
+                                        <button type="button" class="btn btn-outline-secondary" id="applyDiscount">
+                                            Apply
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Estimated Fare</label>
+                                    <div class="h4 text-success" id="estimatedFare">$0.00</div>
+                                    <small class="text-muted" id="discountInfo" style="display: none;"></small>
+                                </div>
+                            </div>
+
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary btn-lg" id="bookRideBtn">
+                                    <i class="fas fa-taxi me-2"></i>
+                                    Book Ride Now
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Trip Status (hidden initially) -->
+                        <div id="tripStatus" style="display: none;" class="mt-4 p-3 border rounded">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <h6><i class="fas fa-info-circle me-2"></i>Trip Status</h6>
+                                    <div id="statusText" class="h5 mb-2"></div>
+                                    <div id="driverInfo" style="display: none;">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <img id="driverPhoto" class="rounded-circle me-3" width="50" height="50"
+                                                 src="/static/images/default-avatar.png" alt="Driver">
+                                            <div>
+                                                <div class="fw-bold" id="driverName"></div>
+                                                <div class="text-muted" id="driverPhone"></div>
+                                                <div class="text-warning">
+                                                    <span id="driverRating"></span>
+                                                    <i class="fas fa-star"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="mb-2">
+                                            <strong>Vehicle:</strong> <span id="vehicleInfo"></span>
+                                        </div>
+                                        <div class="mb-2">
+                                            <strong>License Plate:</strong> <span id="licensePlate"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <button id="cancelTripBtn" class="btn btn-danger mb-2" style="display: none;">
+                                        Cancel Trip
+                                    </button>
+                                    <button id="callDriverBtn" class="btn btn-success mb-2" style="display: none;">
+                                        <i class="fas fa-phone"></i> Call Driver
+                                    </button>
+                                    <div id="tripTimer" class="text-muted"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Map -->
+                <div class="card shadow-sm">
+                    <div class="card-body p-0">
+                        <div id="map" style="height: 400px; width: 100%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="col-lg-4">
+                <!-- Recent Trips -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-history me-2"></i>
+                            Recent Trips
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="recentTrips" class="list-group list-group-flush">
+                            <!-- Recent trips will be loaded here -->
+                        </div>
+                        <div class="text-center mt-3">
+                            <a href="/user/trips/" class="btn btn-outline-primary btn-sm">View All Trips</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>
+                            Your Stats
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="stat-item">
+                                    <div class="h4 text-primary" data-stat="total-trips">0</div>
+                                    <small class="text-muted">Total Trips</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat-item">
+                                    <div class="h4 text-success" data-stat="total-spent">$0</div>
+                                    <small class="text-muted">Total Spent</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat-item">
+                                    <div class="h4 text-warning" data-stat="avg-rating">0.0</div>
+                                    <small class="text-muted">Avg Rating</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Wallet Section -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-wallet me-2"></i>
+                            Wallet
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center mb-3">
+                            <div class="h3 text-success">$<span id="walletBalanceDetailed">0.00</span></div>
+                            <small class="text-muted">Available Balance</small>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#topupModal">
+                                <i class="fas fa-plus me-2"></i>Add Money
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="window.location.href='/user/wallet/'">
+                                <i class="fas fa-history me-2"></i>Transaction History
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Favorite Locations -->
+                <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-star me-2"></i>
+                            Favorite Places
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="favoriteLocations">
+                            <!-- Favorite locations will be loaded here -->
+                        </div>
+                        <button class="btn btn-outline-primary btn-sm w-100 mt-2" id="addFavoriteBtn">
+                            <i class="fas fa-plus me-2"></i>Add Favorite
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endblock %}
+    </div>
+
+    <!-- Top-up Modal -->
+    <div class="modal fade" id="topupModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Money to Wallet</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="topupForm">
+                        <div class="mb-3">
+                            <label for="topupAmount" class="form-label">Amount</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="topupAmount"
+                                       placeholder="0.00" min="5" max="500" step="0.01" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="paymentMethod" class="form-label">Payment Method</label>
+                            <select class="form-select" id="paymentMethod" required>
+                                <option value="">Select payment method</option>
+                                <option value="credit_card">Credit Card</option>
+                                <option value="debit_card">Debit Card</option>
+                                <option value="paypal">PayPal</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                            </select>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Add Money</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trip Rating Modal -->
+    <div class="modal fade" id="ratingModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Rate Your Trip</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <div class="rating-stars mb-3">
+                            <i class="fas fa-star star" data-rating="1"></i>
+                            <i class="fas fa-star star" data-rating="2"></i>
+                            <i class="fas fa-star star" data-rating="3"></i>
+                            <i class="fas fa-star star" data-rating="4"></i>
+                            <i class="fas fa-star star" data-rating="5"></i>
+                        </div>
+                        <div class="h5" id="ratingText">Tap to rate</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="tripComment" class="form-label">Comment (Optional)</label>
+                        <textarea class="form-control" id="tripComment" rows="3"
+                                  placeholder="How was your trip?"></textarea>
+                    </div>
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-primary" id="submitRating">Submit Rating</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/static/libraries/bootstrap-5.3.3/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/libraries/leaflet-1.9.4/leaflet.js"></script>
+    <script src="/js/user/base.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

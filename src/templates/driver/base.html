@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Driver Dashboard{% endblock %} - Taxi Service</title>
+    <link href="/static/libraries/bootstrap-5.3.3/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/libraries/fontawesome-6.7.1/css/all.min.css" rel="stylesheet">
+    <link href="/static/libraries/leaflet-1.9.4/leaflet.css" rel="stylesheet">
+    <link href="/css/driver/base.css" rel="stylesheet">
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="driver-dashboard">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success shadow-sm">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/driver/">
+                <i class="fas fa-car me-2"></i>
+                <strong>TaxiGo Driver</strong>
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/driver/">
+                            <i class="fas fa-home me-1"></i>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/driver/trips/">
+                            <i class="fas fa-route me-1"></i>
+                            My Trips
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/driver/earnings/">
+                            <i class="fas fa-dollar-sign me-1"></i>
+                            Earnings
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/driver/profile/">
+                            <i class="fas fa-user-edit me-1"></i>
+                            Profile
+                        </a>
+                    </li>
+                </ul>
+
+                <ul class="navbar-nav">
+                    <li class="nav-item me-3">
+                        <div class="navbar-text">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="onlineToggle">
+                                <label class="form-check-label text-white" for="onlineToggle">
+                                    <span id="onlineStatus">Offline</span>
+                                </label>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <span class="navbar-text me-3">
+                            <i class="fas fa-dollar-sign me-1"></i>
+                            Today: $<span id="todayEarnings">0.00</span>
+                        </span>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-1"></i>
+                            <span id="driverName">Driver</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/driver/profile/">My Profile</a></li>
+                            <li><a class="dropdown-item" href="/driver/vehicle/">Vehicle Info</a></li>
+                            <li><a class="dropdown-item" href="/driver/settings/">Settings</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/api/v1/auth/logout">Logout</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid py-4">
+        {% block content %}
+        <div class="row">
+            <!-- Main Dashboard Content -->
+            <div class="col-lg-8">
+                <!-- Status Card -->
+                <div class="card shadow-sm mb-4" id="statusCard">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <span id="statusTitle">Offline</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="offlineMessage">
+                            <div class="text-center py-3">
+                                <i class="fas fa-car-crash fa-3x text-muted mb-3"></i>
+                                <h6>You're currently offline</h6>
+                                <p class="text-muted">Toggle the switch above to go online and start receiving trip requests.</p>
+                                <button class="btn btn-success" onclick="document.getElementById('onlineToggle').click()">
+                                    <i class="fas fa-power-off me-2"></i>Go Online
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="onlineMessage" style="display: none;">
+                            <div class="text-center py-3">
+                                <i class="fas fa-car fa-3x text-success mb-3"></i>
+                                <h6>You're online and ready for trips!</h6>
+                                <p class="text-muted">Waiting for trip requests in your area...</p>
+                                <div class="spinner-border text-success" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Trip Request (hidden initially) -->
+                        <div id="tripRequest" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <h6><i class="fas fa-bell me-2"></i>New Trip Request</h6>
+                                    <div class="mb-2">
+                                        <strong>Pickup:</strong> <span id="requestPickup"></span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Destination:</strong> <span id="requestDestination"></span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Distance:</strong> <span id="requestDistance"></span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Estimated Fare:</strong> <span id="requestFare" class="text-success fw-bold"></span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Passenger:</strong> <span id="requestPassenger"></span>
+                                        <span class="text-warning ms-2">
+                                            <span id="passengerRating"></span>
+                                            <i class="fas fa-star"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <div class="mb-3">
+                                        <div class="countdown-timer" id="requestTimer">30</div>
+                                        <small class="text-muted">seconds to respond</small>
+                                    </div>
+                                    <div class="d-grid gap-2">
+                                        <button id="acceptTripBtn" class="btn btn-success btn-lg">
+                                            <i class="fas fa-check me-2"></i>Accept
+                                        </button>
+                                        <button id="rejectTripBtn" class="btn btn-danger">
+                                            <i class="fas fa-times me-2"></i>Decline
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Active Trip (hidden initially) -->
+                        <div id="activeTrip" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <h6><i class="fas fa-route me-2"></i>Active Trip</h6>
+                                    <div class="d-flex align-items-center mb-3">
+                                        <img id="passengerPhoto" class="rounded-circle me-3" width="50" height="50"
+                                             src="/static/images/default-avatar.png" alt="Passenger">
+                                        <div>
+                                            <div class="fw-bold" id="passengerName"></div>
+                                            <div class="text-muted" id="passengerPhone"></div>
+                                            <div class="text-warning">
+                                                <span id="passengerRatingActive"></span>
+                                                <i class="fas fa-star"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Pickup:</strong> <span id="activeTripPickup"></span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Destination:</strong> <span id="activeTripDestination"></span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Trip Status:</strong> <span id="activeTripStatus" class="badge"></span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Fare:</strong> <span id="activeTripFare" class="text-success fw-bold"></span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <div class="mb-3">
+                                        <div id="tripDuration" class="h5 text-primary">00:00</div>
+                                        <small class="text-muted">Trip duration</small>
+                                    </div>
+                                    <div class="d-grid gap-2">
+                                        <button id="startTripBtn" class="btn btn-primary" style="display: none;">
+                                            <i class="fas fa-play me-2"></i>Start Trip
+                                        </button>
+                                        <button id="completeTripBtn" class="btn btn-success" style="display: none;">
+                                            <i class="fas fa-flag-checkered me-2"></i>Complete Trip
+                                        </button>
+                                        <button id="callPassengerBtn" class="btn btn-info">
+                                            <i class="fas fa-phone me-2"></i>Call Passenger
+                                        </button>
+                                        <button id="cancelTripDriverBtn" class="btn btn-danger btn-sm">
+                                            <i class="fas fa-times me-2"></i>Cancel Trip
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Map -->
+                <div class="card shadow-sm">
+                    <div class="card-body p-0">
+                        <div id="map" style="height: 450px; width: 100%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="col-lg-4">
+                <!-- Today's Earnings -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0">
+                            <i class="fas fa-dollar-sign me-2"></i>
+                            Today's Earnings
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center mb-3">
+                            <div class="h3 text-success">$<span id="todayEarningsDetailed">0.00</span></div>
+                            <small class="text-muted">Total earnings today</small>
+                        </div>
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="stat-item">
+                                    <div class="h5 text-primary" data-stat="today-trips">0</div>
+                                    <small class="text-muted">Trips</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="stat-item">
+                                    <div class="h5 text-info" data-stat="online-hours">0h</div>
+                                    <small class="text-muted">Online</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <a href="/driver/earnings/" class="btn btn-outline-success w-100">
+                                <i class="fas fa-chart-line me-2"></i>View Detailed Earnings
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Trips -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-history me-2"></i>
+                            Recent Trips
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="recentTrips" class="list-group list-group-flush">
+                            <!-- Recent trips will be loaded here -->
+                        </div>
+                        <div class="text-center mt-3">
+                            <a href="/driver/trips/" class="btn btn-outline-primary btn-sm">View All Trips</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Driver Stats -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>
+                            Your Performance
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="stat-item">
+                                    <div class="h4 text-warning" data-stat="driver-rating">0.0</div>
+                                    <small class="text-muted">Rating</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat-item">
+                                    <div class="h4 text-success" data-stat="acceptance-rate">0%</div>
+                                    <small class="text-muted">Acceptance</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat-item">
+                                    <div class="h4 text-info" data-stat="total-trips">0</div>
+                                    <small class="text-muted">Total Trips</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <div class="progress mb-2" style="height: 8px;">
+                                <div class="progress-bar bg-warning" role="progressbar"
+                                     style="width: 0%" id="ratingProgress"></div>
+                            </div>
+                            <small class="text-muted">Maintain a 4.5+ rating for bonuses</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vehicle Status -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-car me-2"></i>
+                            Vehicle Status
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <strong>Vehicle:</strong> <span id="vehicleModel">-</span>
+                        </div>
+                        <div class="mb-2">
+                            <strong>License Plate:</strong> <span id="vehiclePlate">-</span>
+                        </div>
+                        <div class="mb-2">
+                            <strong>Status:</strong>
+                            <span id="vehicleStatus" class="badge bg-success">Active</span>
+                        </div>
+                        <div class="mb-3">
+                            <strong>Fuel Level:</strong>
+                            <div class="progress mt-1" style="height: 8px;">
+                                <div class="progress-bar bg-info" role="progressbar"
+                                     style="width: 75%" id="fuelLevel"></div>
+                            </div>
+                            <small class="text-muted">Estimated: 75%</small>
+                        </div>
+                        <div class="d-grid">
+                            <button class="btn btn-outline-primary btn-sm" onclick="window.location.href='/driver/vehicle/'">
+                                <i class="fas fa-edit me-2"></i>Update Vehicle Info
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-bolt me-2"></i>
+                            Quick Actions
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-primary" onclick="window.location.href='/driver/profile/'">
+                                <i class="fas fa-user-edit me-2"></i>Edit Profile
+                            </button>
+                            <button class="btn btn-outline-warning" id="reportIssueBtn">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Report Issue
+                            </button>
+                            <button class="btn btn-outline-info" onclick="window.location.href='/driver/help/'">
+                                <i class="fas fa-question-circle me-2"></i>Help & Support
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endblock %}
+    </div>
+
+    <!-- Trip Completion Modal -->
+    <div class="modal fade" id="tripCompletionModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">Trip Completed Successfully!</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+                        <h5>Great job!</h5>
+                        <p class="text-muted">You've successfully completed the trip.</p>
+                    </div>
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="border-end">
+                                <div class="h4 text-success" id="completedTripFare">$0.00</div>
+                                <small class="text-muted">Trip Earnings</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="h4 text-primary" id="completedTripDistance">0 km</div>
+                            <small class="text-muted">Distance Covered</small>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <div class="d-grid">
+                            <button class="btn btn-primary" data-bs-dismiss="modal">
+                                Continue Driving
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Emergency/Issue Reporting Modal -->
+    <div class="modal fade" id="issueModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Report an Issue</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="issueForm">
+                        <div class="mb-3">
+                            <label for="issueType" class="form-label">Issue Type</label>
+                            <select class="form-select" id="issueType" required>
+                                <option value="">Select issue type</option>
+                                <option value="vehicle_breakdown">Vehicle Breakdown</option>
+                                <option value="accident">Accident</option>
+                                <option value="passenger_issue">Passenger Issue</option>
+                                <option value="app_problem">App Problem</option>
+                                <option value="payment_issue">Payment Issue</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="issueDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="issueDescription" rows="4"
+                                      placeholder="Please describe the issue in detail..." required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="emergencyCheck">
+                                <label class="form-check-label text-danger" for="emergencyCheck">
+                                    This is an emergency requiring immediate assistance
+                                </label>
+                            </div>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-warning">Submit Report</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/static/libraries/bootstrap-5.3.3/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/libraries/leaflet-1.9.4/leaflet.js"></script>
+    <script src="/js/driver/base.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

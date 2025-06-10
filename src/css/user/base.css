@@ -1,0 +1,511 @@
+@font-face {
+  font-family: 'Vazir';
+  src: url('/static/Vazirmatn-Medium.woff2') format('woff2');
+}
+
+/* Global Styles */
+:root {
+  --primary-color: #007bff;
+  --secondary-color: #6c757d;
+  --success-color: #28a745;
+  --warning-color: #ffc107;
+  --danger-color: #dc3545;
+  --info-color: #17a2b8;
+  --light-color: #f8f9fa;
+  --dark-color: #343a40;
+  --border-radius: 8px;
+  --box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  --transition: all 0.3s ease;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body.user-dashboard {
+  font-family: 'Vazir', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--light-color);
+  margin: 0;
+  padding: 0;
+  line-height: 1.6;
+}
+
+/* Navigation Styles */
+.navbar {
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  padding: 0.75rem 0;
+  box-shadow: var(--box-shadow);
+}
+
+.navbar-brand {
+  color: white !important;
+  font-weight: 700;
+  font-size: 1.5rem;
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+.navbar-brand:hover {
+  color: #e3f2fd !important;
+  transform: translateY(-1px);
+}
+
+.navbar-nav .nav-link {
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-weight: 500;
+  margin: 0 0.5rem;
+  padding: 0.5rem 1rem !important;
+  border-radius: var(--border-radius);
+  transition: var(--transition);
+}
+
+.navbar-nav .nav-link:hover,
+.navbar-nav .nav-link.active {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white !important;
+  transform: translateY(-1px);
+}
+
+.navbar-text {
+  color: white !important;
+  font-weight: 500;
+}
+
+.btn-outline-light {
+  border-color: rgba(255, 255, 255, 0.5);
+  color: white;
+  transition: var(--transition);
+}
+
+.btn-outline-light:hover {
+  background-color: white;
+  color: var(--primary-color);
+  transform: translateY(-1px);
+}
+
+/* Main Content */
+.main-content {
+  flex: 1;
+  padding: 2rem 0;
+  min-height: calc(100vh - 76px);
+}
+
+/* Dashboard Grid */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 2rem;
+  height: calc(100vh - 150px);
+}
+
+@media (max-width: 992px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+}
+
+/* Map Section */
+.map-section {
+  background: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  overflow: hidden;
+  position: relative;
+}
+
+.map-header {
+  background: linear-gradient(135deg, var(--primary-color) 0%, #0056b3 100%);
+  color: white;
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: between;
+  align-items: center;
+}
+
+.map-header h5 {
+  margin: 0;
+  font-weight: 600;
+}
+
+#map {
+  height: 100%;
+  min-height: 500px;
+  width: 100%;
+}
+
+/* Trip Panel */
+.trip-panel {
+  background: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.trip-panel-header {
+  background: linear-gradient(135deg, var(--success-color) 0%, #1e7e34 100%);
+  color: white;
+  padding: 1rem 1.5rem;
+  border-radius: var(--border-radius) var(--border-radius) 0 0;
+}
+
+.trip-panel-body {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+/* Trip Booking Form */
+.trip-form {
+  margin-bottom: 2rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-control {
+  border-radius: var(--border-radius);
+  border: 2px solid #e9ecef;
+  padding: 0.75rem 1rem;
+  transition: var(--transition);
+  font-size: 0.95rem;
+}
+
+.form-control:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.input-group-text {
+  background-color: var(--primary-color);
+  color: white;
+  border: 2px solid var(--primary-color);
+}
+
+/* Buttons */
+.btn {
+  border-radius: var(--border-radius);
+  font-weight: 500;
+  padding: 0.75rem 1.5rem;
+  transition: var(--transition);
+  border: none;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary-color) 0%, #0056b3 100%);
+}
+
+.btn-success {
+  background: linear-gradient(135deg, var(--success-color) 0%, #1e7e34 100%);
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, var(--warning-color) 0%, #d39e00 100%);
+  color: #212529;
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, var(--danger-color) 0%, #bd2130 100%);
+}
+
+.btn-info {
+  background: linear-gradient(135deg, var(--info-color) 0%, #117a8b 100%);
+}
+
+/* Trip Status Cards */
+.trip-status {
+  background: #f8f9fa;
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  border-left: 4px solid var(--primary-color);
+}
+
+.trip-status.searching {
+  border-left-color: var(--warning-color);
+}
+
+.trip-status.active {
+  border-left-color: var(--success-color);
+}
+
+.trip-status.completed {
+  border-left-color: var(--info-color);
+}
+
+.trip-status.cancelled {
+  border-left-color: var(--danger-color);
+}
+
+/* Driver Info Card */
+.driver-info {
+  background: white;
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  box-shadow: var(--box-shadow);
+  margin-bottom: 1rem;
+  border: 2px solid #e9ecef;
+}
+
+.driver-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--primary-color);
+}
+
+.driver-rating {
+  color: var(--warning-color);
+}
+
+/* Trip Progress */
+.trip-progress {
+  margin: 1rem 0;
+}
+
+.progress {
+  height: 8px;
+  border-radius: 4px;
+  background-color: #e9ecef;
+}
+
+.progress-bar {
+  border-radius: 4px;
+  transition: width 0.6s ease;
+}
+
+/* Wallet Section */
+.wallet-card {
+  background: linear-gradient(135deg, var(--success-color) 0%, #1e7e34 100%);
+  color: white;
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--box-shadow);
+}
+
+.wallet-balance {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.wallet-actions {
+  margin-top: 1rem;
+}
+
+/* Trip History */
+.trip-history {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.trip-item {
+  background: white;
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid #e9ecef;
+  transition: var(--transition);
+}
+
+.trip-item:hover {
+  box-shadow: var(--box-shadow);
+  transform: translateY(-1px);
+}
+
+.trip-route {
+  font-weight: 600;
+  color: var(--dark-color);
+}
+
+.trip-meta {
+  font-size: 0.875rem;
+  color: var(--secondary-color);
+  margin-top: 0.5rem;
+}
+
+/* Loading Spinner */
+.loading-spinner {
+  display: none;
+  text-align: center;
+  padding: 2rem;
+}
+
+.spinner-border {
+  color: var(--primary-color);
+}
+
+/* Notifications */
+.notification {
+  position: fixed;
+  top: 90px;
+  right: 20px;
+  max-width: 350px;
+  z-index: 1050;
+  border-radius: var(--border-radius);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  border: none;
+}
+
+.notification.show {
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Modals */
+.modal-content {
+  border-radius: var(--border-radius);
+  border: none;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.modal-header {
+  background: linear-gradient(135deg, var(--primary-color) 0%, #0056b3 100%);
+  color: white;
+  border-radius: var(--border-radius) var(--border-radius) 0 0;
+}
+
+.modal-title {
+  font-weight: 600;
+}
+
+.btn-close {
+  filter: brightness(0) invert(1);
+}
+
+/* Rating Stars */
+.rating-stars {
+  color: var(--warning-color);
+  margin: 0.5rem 0;
+}
+
+.rating-stars .fa-star {
+  cursor: pointer;
+  transition: var(--transition);
+  margin-right: 0.25rem;
+}
+
+.rating-stars .fa-star:hover {
+  transform: scale(1.2);
+}
+
+/* Quick Actions */
+.quick-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.quick-action-btn {
+  flex: 1;
+  min-width: 120px;
+  padding: 0.5rem;
+  font-size: 0.875rem;
+}
+
+/* Status Badges */
+.badge {
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+}
+
+.badge-waiting {
+  background-color: var(--warning-color);
+  color: #212529;
+}
+
+.badge-active {
+  background-color: var(--success-color);
+  color: white;
+}
+
+.badge-completed {
+  background-color: var(--info-color);
+  color: white;
+}
+
+.badge-cancelled {
+  background-color: var(--danger-color);
+  color: white;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .main-content {
+    padding: 1rem 0;
+  }
+
+  .dashboard-grid {
+    gap: 1rem;
+    grid-template-columns: 1fr;
+  }
+
+  .trip-panel-body {
+    padding: 1rem;
+  }
+
+  .map-header,
+  .trip-panel-header {
+    padding: 0.75rem 1rem;
+  }
+
+  #map {
+    min-height: 300px;
+  }
+
+  .quick-action-btn {
+    min-width: 100px;
+    font-size: 0.8rem;
+  }
+
+  .wallet-balance {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar-brand {
+    font-size: 1.25rem;
+  }
+
+  .form-control {
+    padding: 0.6rem 0.8rem;
+  }
+
+  .btn {
+    padding: 0.6rem 1rem;
+  }
+
+  .driver-info {
+    padding: 1rem;
+  }
+
+  .driver-avatar {
+    width: 50px;
+    height: 50px;
+  }
+}

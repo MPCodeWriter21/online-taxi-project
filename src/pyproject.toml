@@ -1,0 +1,98 @@
+[tool.poetry]
+name = "salam-resan-ir"
+version = "0.1.0"
+description = "SalamResan Website First Edition"
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+packages = [{include = "app"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = {extras = ["all"], version = "^0.112.1"}
+pydantic = "^2.8.2"
+uvicorn = "^0.30.6"
+jinja2 = "^3.1.6"
+httpx = "^0.27.0"
+psycopg = {extras = ["binary"], version = "^3.2.1"}
+psycopg-pool = "^3.2.2"
+pyjwt = "^2.9.0"
+log21 = "^2.10.0"
+jdatetime = "^5.0.0"
+rich = "^13.7.1"
+itsdangerous = "^2.2.0"
+poethepoet = "^0.27.0"
+apscheduler = "^3.10.4"
+passlib = {version = "^1.7.4", extras = ["bcrypt"]}
+bcrypt = "^4.2.0"
+python-dotenv = "^1.0.1"
+cryptography = "^44.0.1"
+xlwt = "^1.3.0"
+reportlab = {version = "^4.2.5", extras = ["accel", "renderpm", "pycairo"]}
+openpyxl = "^3.1.5"
+asgi-sitemaps = "^1.0.0"
+markdown = "^3.7"
+python-multipart = "^0.0.20"
+aiosmtplib = "^4.0.1"
+geoalchemy2 = "^0.15.2"
+
+[tool.poetry.group.dev.dependencies]
+pylint = "^2.17.5"
+isort = "^5.12.0"
+yapf = "^0.40.1"
+docformatter = "^1.7.5"
+ruff = "^0.0.292"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+add-admin = "app.routers.admin.__main__:create_admin"
+init-db = "app.core.db:init_db"
+
+[tool.poe.tasks.dev]
+cmd  = "fastapi dev app --reload --host 0.0.0.0 --port 8000"
+help = "Run development server with auto-reload."
+
+[tool.poe.tasks.prod]
+cmd  = "uvicorn app:app --host 0.0.0.0 --port 8000 --proxy-headers"
+help = "Run production server."
+
+[tool.yapf]
+column_limit = 88
+split_before_dot = true
+dedent_closing_brackets = true
+split_before_first_argument = true
+
+[tool.isort]
+line_length = 88
+order_by_type = true
+length_sort = true
+combine_as_imports = true
+
+[tool.docformatter]
+recursive = true
+wrap-summaries = 88
+wrap-descriptions = 88
+
+[tool.ruff]
+show-fixes = true
+exclude = ["migrations"]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+extend-select = ["C4", "SIM", "TCH"]
+
+[tool.pylint.messages_control]
+max-line-length = 88
+
+disable = [
+    "too-few-public-methods",
+    "useless-import-alias",
+    "too-many-arguments",
+    "too-many-locals",
+]
+
+[tool.pylint.design]
+max-returns = 8
