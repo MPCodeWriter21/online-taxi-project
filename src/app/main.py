@@ -6,9 +6,10 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.core import init_db, close_db
-from app.routers.admin import api as admin_router
-from app.routers.users import router as users_router
-from app.routers.driver import api as driver_router
+from app.routers.auth import router as auth_router
+from app.routers.user import router as users_router
+from app.routers.admin import router as admin_router
+from app.routers.driver import router as driver_router
 
 
 @asynccontextmanager
@@ -33,12 +34,11 @@ def create_app() -> FastAPI:
     # Mount static files
     app.mount("/static", StaticFiles(directory="static"), name="static")
     app.mount("/css", StaticFiles(directory="css"), name="css")
-    app.mount("/js", StaticFiles(directory="js"), name="js")
-
-    # Include routers
-    app.include_router(users_router, prefix="/users")
-    app.include_router(driver_router, prefix="/driver")
-    app.include_router(admin_router, prefix="/admin")
+    app.mount("/js", StaticFiles(directory="js"), name="js")  # Include routers
+    app.include_router(auth_router, prefix="/auth")
+    app.include_router(users_router)
+    app.include_router(driver_router)
+    app.include_router(admin_router)
 
     return app
 

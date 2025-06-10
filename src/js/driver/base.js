@@ -13,10 +13,23 @@ class DriverDashboard {
         this.tripTimer = null;
         this.tripStartTime = null;
 
+        // Authentication and permissions
+        this.authToken = null;
+        this.currentDriver = null;
+        this.loginUrl = '/auth/login?type=driver';
+        this.isAuthenticated = false;
+
         this.init();
     }
 
-    init() {
+    async init() {
+        // Check authentication first
+        const authResult = await this.checkAuthentication();
+        if (!authResult) {
+            this.redirectToLogin('You need to log in to access the driver dashboard');
+            return;
+        }
+
         this.initializeMap();
         this.loadDriverData();
         this.loadRecentTrips();
@@ -168,40 +181,39 @@ class DriverDashboard {
     }
 
     async toggleOnlineStatus(online) {
+        const action = online ? 'go_online' : 'go_offline';
+        if (!this.checkPermission(action)) {
+            document.getElementById('onlineToggle').checked = this.isOnline;
+            return;
+        }
+
         try {
-            const response = await fetch('/api/v1/drivers/status/', {
+            const response = await this.makeAuthenticatedRequest('/api/v1/drivers/status/', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                },
-                body: JSON.stringify({
-                    is_active: online
-                })
+                body: JSON.stringify({ is_online: online })
             });
 
-            if (response.ok) {
+            if (response && response.ok) {
                 this.isOnline = online;
                 this.updateOnlineUI();
 
                 if (online) {
                     this.startLocationTracking();
                     this.startTripRequestPolling();
-                    this.showNotification('You are now online and ready for trips!', 'success');
+                    this.showNotification('You are now online and available for trips!', 'success');
                 } else {
                     this.stopLocationTracking();
                     this.stopTripRequestPolling();
                     this.showNotification('You are now offline', 'info');
                 }
             } else {
-                // Revert toggle on error
-                document.getElementById('onlineToggle').checked = !online;
+                document.getElementById('onlineToggle').checked = this.isOnline;
                 this.showNotification('Failed to update status', 'error');
             }
         } catch (error) {
+            document.getElementById('onlineToggle').checked = this.isOnline;
             console.error('Error toggling online status:', error);
-            document.getElementById('onlineToggle').checked = !online;
-            this.showNotification('Network error. Please try again.', 'error');
+            this.showNotification('Network error', 'error');
         }
     }
 
@@ -248,15 +260,12 @@ class DriverDashboard {
 
     async checkForTripRequests() {
         if (!this.isOnline || this.currentTripRequest || this.currentTrip) return;
+        if (!this.checkPermission('accept_trip')) return;
 
         try {
-            const response = await fetch('/api/v1/drivers/available-trips/', {
-                headers: {
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                }
-            });
+            const response = await this.makeAuthenticatedRequest('/api/v1/drivers/available-trips/');
 
-            if (response.ok) {
+            if (response && response.ok) {
                 const trips = await response.json();
                 if (trips.length > 0) {
                     this.currentTripRequest = trips[0];
@@ -316,24 +325,22 @@ class DriverDashboard {
 
     async acceptTripRequest() {
         if (!this.currentTripRequest) return;
+        if (!this.checkPermission('accept_trip')) return;
 
         this.stopRequestTimer();
 
         try {
-            const response = await fetch(`/api/v1/drivers/trips/${this.currentTripRequest.id}/accept/`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                }
+            const response = await this.makeAuthenticatedRequest(`/api/v1/drivers/trips/${this.currentTripRequest.id}/accept/`, {
+                method: 'POST'
             });
 
-            if (response.ok) {
+            if (response && response.ok) {
                 const trip = await response.json();
                 this.currentTrip = trip;
                 this.currentTripRequest = null;
                 this.showActiveTrip();
                 this.showNotification('Trip accepted! Navigate to pickup location.', 'success');
-            } else {
+            } else if (response) {
                 const error = await response.json();
                 this.showNotification(error.detail || 'Failed to accept trip', 'error');
                 this.hideTripRequest();
@@ -347,15 +354,13 @@ class DriverDashboard {
 
     async rejectTripRequest() {
         if (!this.currentTripRequest) return;
+        if (!this.checkPermission('reject_trip')) return;
 
         this.stopRequestTimer();
 
         try {
-            await fetch(`/api/v1/drivers/trips/${this.currentTripRequest.id}/reject/`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                }
+            await this.makeAuthenticatedRequest(`/api/v1/drivers/trips/${this.currentTripRequest.id}/reject/`, {
+                method: 'POST'
             });
         } catch (error) {
             console.error('Error rejecting trip:', error);
@@ -486,16 +491,14 @@ class DriverDashboard {
 
     async startTrip() {
         if (!this.currentTrip) return;
+        if (!this.checkPermission('start_trip')) return;
 
         try {
-            const response = await fetch(`/api/v1/drivers/trips/${this.currentTrip.id}/start/`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                }
+            const response = await this.makeAuthenticatedRequest(`/api/v1/drivers/trips/${this.currentTrip.id}/start/`, {
+                method: 'POST'
             });
 
-            if (response.ok) {
+            if (response && response.ok) {
                 this.currentTrip.status = 'in_progress';
                 this.updateActiveTripUI();
                 this.showNotification('Trip started! Drive safely to destination.', 'success');
@@ -510,20 +513,18 @@ class DriverDashboard {
 
     async completeTrip() {
         if (!this.currentTrip) return;
+        if (!this.checkPermission('complete_trip')) return;
 
         if (!confirm('Are you sure you want to complete this trip?')) {
             return;
         }
 
         try {
-            const response = await fetch(`/api/v1/drivers/trips/${this.currentTrip.id}/complete/`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                }
+            const response = await this.makeAuthenticatedRequest(`/api/v1/drivers/trips/${this.currentTrip.id}/complete/`, {
+                method: 'POST'
             });
 
-            if (response.ok) {
+            if (response && response.ok) {
                 const completedTrip = await response.json();
                 this.showTripCompletion(completedTrip);
                 this.resetToOnlineState();
@@ -552,23 +553,20 @@ class DriverDashboard {
 
     async cancelTrip() {
         if (!this.currentTrip) return;
+        if (!this.checkPermission('cancel_trip')) return;
 
         const reason = prompt('Please provide a reason for cancelling this trip:');
         if (!reason) return;
 
         try {
-            const response = await fetch(`/api/v1/drivers/trips/${this.currentTrip.id}/cancel/`, {
+            const response = await this.makeAuthenticatedRequest(`/api/v1/drivers/trips/${this.currentTrip.id}/cancel/`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                },
                 body: JSON.stringify({
                     reason: reason
                 })
             });
 
-            if (response.ok) {
+            if (response && response.ok) {
                 this.showNotification('Trip cancelled', 'warning');
                 this.resetToOnlineState();
             } else {
@@ -607,14 +605,12 @@ class DriverDashboard {
     }
 
     async checkActiveTrip() {
-        try {
-            const response = await fetch('/api/v1/drivers/trips/active/', {
-                headers: {
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                }
-            });
+        if (!this.checkPermission('view_trips')) return;
 
-            if (response.ok) {
+        try {
+            const response = await this.makeAuthenticatedRequest('/api/v1/drivers/trips/active/');
+
+            if (response && response.ok) {
                 const trip = await response.json();
                 if (trip) {
                     this.currentTrip = trip;
@@ -631,19 +627,18 @@ class DriverDashboard {
     }
 
     async loadDriverData() {
-        try {
-            const response = await fetch('/api/v1/drivers/profile/', {
-                headers: {
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                }
-            });
+        if (!this.checkPermission('view_profile')) return;
 
-            if (response.ok) {
+        try {
+            const response = await this.makeAuthenticatedRequest('/api/v1/drivers/profile/');
+
+            if (response && response.ok) {
                 const driverData = await response.json();
-                document.getElementById('driverName').textContent = driverData.first_name;
+                this.currentDriver = driverData;
+                document.getElementById('driverName').textContent = driverData.user.first_name;
 
                 // Update driver status
-                this.isOnline = driverData.is_active;
+                this.isOnline = driverData.is_active || false;
                 document.getElementById('onlineToggle').checked = this.isOnline;
                 this.updateOnlineUI();
 
@@ -657,35 +652,13 @@ class DriverDashboard {
         }
     }
 
-    async loadTodayEarnings() {
-        try {
-            const response = await fetch('/api/v1/drivers/earnings/today/', {
-                headers: {
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                }
-            });
-
-            if (response.ok) {
-                const earnings = await response.json();
-                document.getElementById('todayEarnings').textContent = earnings.total_earnings.toFixed(2);
-                document.getElementById('todayEarningsDetailed').textContent = earnings.total_earnings.toFixed(2);
-                document.querySelector('[data-stat="today-trips"]').textContent = earnings.trip_count;
-                document.querySelector('[data-stat="online-hours"]').textContent = `${earnings.online_hours}h`;
-            }
-        } catch (error) {
-            console.error('Error loading today earnings:', error);
-        }
-    }
-
     async loadRecentTrips() {
-        try {
-            const response = await fetch('/api/v1/drivers/trips/?limit=5', {
-                headers: {
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                }
-            });
+        if (!this.checkPermission('view_trips')) return;
 
-            if (response.ok) {
+        try {
+            const response = await this.makeAuthenticatedRequest('/api/v1/drivers/trips/?limit=5');
+
+            if (response && response.ok) {
                 const trips = await response.json();
                 this.displayRecentTrips(trips);
             }
@@ -717,45 +690,48 @@ class DriverDashboard {
     }
 
     async loadDriverStats() {
+        if (!this.checkPermission('view_earnings')) return;
+
         try {
-            const response = await fetch('/api/v1/drivers/stats/', {
-                headers: {
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                }
-            });
+            const response = await this.makeAuthenticatedRequest('/api/v1/drivers/stats/');
 
-            if (response.ok) {
+            if (response && response.ok) {
                 const stats = await response.json();
-                document.querySelector('[data-stat="driver-rating"]').textContent = stats.rating.toFixed(1);
-                document.querySelector('[data-stat="acceptance-rate"]').textContent = `${stats.acceptance_rate}%`;
-                document.querySelector('[data-stat="total-trips"]').textContent = stats.total_trips;
-
-                // Update rating progress bar
-                const ratingProgress = document.getElementById('ratingProgress');
-                const ratingPercentage = (stats.rating / 5) * 100;
-                ratingProgress.style.width = `${ratingPercentage}%`;
+                document.querySelector('[data-stat="total-trips"]').textContent = stats.total_trips || 0;
+                document.querySelector('[data-stat="total-earnings"]').textContent = `$${stats.total_earnings || 0}`;
+                document.querySelector('[data-stat="avg-rating"]').textContent = (stats.avg_rating || 0).toFixed(1);
             }
         } catch (error) {
             console.error('Error loading driver stats:', error);
         }
     }
 
-    async loadVehicleInfo() {
+    async loadTodayEarnings() {
+        if (!this.checkPermission('view_earnings')) return;
+
         try {
-            const response = await fetch('/api/v1/drivers/vehicle/', {
-                headers: {
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                }
-            });
+            const response = await this.makeAuthenticatedRequest('/api/v1/drivers/earnings/today/');
 
-            if (response.ok) {
+            if (response && response.ok) {
+                const earnings = await response.json();
+                document.getElementById('todayEarnings').textContent = earnings.amount.toFixed(2);
+            }
+        } catch (error) {
+            console.error('Error loading today earnings:', error);
+        }
+    }
+
+    async loadVehicleInfo() {
+        if (!this.checkPermission('view_profile')) return;
+
+        try {
+            const response = await this.makeAuthenticatedRequest('/api/v1/drivers/vehicle/');
+
+            if (response && response.ok) {
                 const vehicle = await response.json();
-                document.getElementById('vehicleModel').textContent = `${vehicle.make} ${vehicle.model}`;
-                document.getElementById('vehiclePlate').textContent = vehicle.license_plate;
-
-                const statusBadge = document.getElementById('vehicleStatus');
-                statusBadge.textContent = vehicle.status || 'Active';
-                statusBadge.className = `badge bg-${vehicle.status === 'active' ? 'success' : 'warning'}`;
+                document.getElementById('vehicleMake').textContent = vehicle.make || 'N/A';
+                document.getElementById('vehicleModel').textContent = vehicle.model || 'N/A';
+                document.getElementById('licensePlate').textContent = vehicle.license_plate || 'N/A';
             }
         } catch (error) {
             console.error('Error loading vehicle info:', error);
@@ -763,17 +739,15 @@ class DriverDashboard {
     }
 
     async submitIssueReport() {
+        if (!this.checkPermission('report_issue')) return;
+
         const issueType = document.getElementById('issueType').value;
         const description = document.getElementById('issueDescription').value;
         const isEmergency = document.getElementById('emergencyCheck').checked;
 
         try {
-            const response = await fetch('/api/v1/drivers/issues/', {
+            const response = await this.makeAuthenticatedRequest('/api/v1/drivers/issues/', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                },
                 body: JSON.stringify({
                     issue_type: issueType,
                     description: description,
@@ -782,7 +756,7 @@ class DriverDashboard {
                 })
             });
 
-            if (response.ok) {
+            if (response && response.ok) {
                 this.showNotification('Issue reported successfully. Support will contact you soon.', 'success');
 
                 // Close modal
@@ -791,38 +765,174 @@ class DriverDashboard {
 
                 // Reset form
                 document.getElementById('issueForm').reset();
-
-                if (isEmergency) {
-                    this.showNotification('Emergency reported! Support will contact you immediately.', 'warning');
-                }
             } else {
-                this.showNotification('Failed to submit issue report', 'error');
+                this.showNotification('Failed to report issue', 'error');
             }
         } catch (error) {
-            console.error('Error submitting issue report:', error);
+            console.error('Error reporting issue:', error);
             this.showNotification('Network error. Please try again.', 'error');
         }
     }
 
-    playNotificationSound() {
-        // Play notification sound for trip requests
-        try {
-            const audio = new Audio('/static/sounds/notification.mp3');
-            audio.play().catch(e => console.log('Could not play notification sound'));
-        } catch (error) {
-            console.log('Notification sound not available');
+    async updateLocation() {
+        if (!this.checkPermission('update_location')) return;
+
+        if (navigator.geolocation && this.isOnline) {
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    this.driverLocation = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+
+                    // Update location on server
+                    try {
+                        await this.makeAuthenticatedRequest('/api/v1/drivers/location/', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                latitude: this.driverLocation.lat,
+                                longitude: this.driverLocation.lng
+                            })
+                        });
+                    } catch (error) {
+                        console.error('Error updating location:', error);
+                    }
+
+                    this.updateDriverMarker();
+                },
+                (error) => {
+                    console.error('Error getting location:', error);
+                }
+            );
         }
     }
 
-    getStatusColor(status) {
-        const colors = {
-            'pending': 'warning',
-            'accepted': 'info',
-            'in_progress': 'primary',
-            'completed': 'success',
-            'cancelled': 'danger'
+    async checkAuthentication() {
+        try {
+            this.authToken = this.getAuthToken();
+
+            if (!this.authToken) {
+                console.log('No auth token found');
+                return false;
+            }
+
+            // Verify token with backend
+            const response = await fetch('/api/v1/drivers/profile/', {
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+
+            if (response.status === 401 || response.status === 403) {
+                console.log('Authentication failed');
+                this.clearAuthData();
+                return false;
+            }
+
+            if (response.ok) {
+                this.currentDriver = await response.json();
+                this.isAuthenticated = true;
+                return true;
+            }
+
+            return false;
+        } catch (error) {
+            console.error('Authentication check failed:', error);
+            return false;
+        }
+    }
+
+    checkPermission(action) {
+        if (!this.isAuthenticated) {
+            this.redirectToLogin('Authentication required');
+            return false;
+        }
+
+        // Check if driver account is active and approved
+        if (this.currentDriver && this.currentDriver.user && this.currentDriver.user.status !== 'active') {
+            this.showNotification('Your account is not active. Please contact support.', 'error');
+            return false;
+        }
+
+        if (this.currentDriver && this.currentDriver.approval_status !== 'approved') {
+            this.showNotification('Your driver account is not approved yet. Please wait for admin approval.', 'warning');
+            return false;
+        }
+
+        // Driver permissions
+        const driverActions = [
+            'go_online', 'go_offline', 'accept_trip', 'reject_trip', 'start_trip',
+            'complete_trip', 'cancel_trip', 'view_trips', 'view_earnings',
+            'update_location', 'view_profile', 'report_issue'
+        ];
+
+        if (driverActions.includes(action)) {
+            return true;
+        }
+
+        this.showNotification('You do not have permission to perform this action', 'error');
+        return false;
+    }
+
+    async makeAuthenticatedRequest(url, options = {}) {
+        if (!this.checkPermission('api_access')) {
+            return null;
+        }
+
+        const defaultHeaders = {
+            'Authorization': `Bearer ${this.authToken}`,
+            'Content-Type': 'application/json'
         };
-        return colors[status] || 'secondary';
+
+        const requestOptions = {
+            ...options,
+            headers: {
+                ...defaultHeaders,
+                ...options.headers
+            }
+        };
+
+        try {
+            const response = await fetch(url, requestOptions);
+
+            if (response.status === 401) {
+                this.handleAuthenticationError('Session expired. Please log in again.');
+                return null;
+            }
+
+            if (response.status === 403) {
+                this.showNotification('You do not have permission to perform this action', 'error');
+                return null;
+            }
+
+            return response;
+        } catch (error) {
+            console.error('API request failed:', error);
+            this.showNotification('Network error. Please check your connection.', 'error');
+            return null;
+        }
+    }
+
+    handleAuthenticationError(message) {
+        this.clearAuthData();
+        this.showNotification(message, 'error');
+        setTimeout(() => {
+            this.redirectToLogin(message);
+        }, 2000);
+    }
+
+    redirectToLogin(message = 'Please log in to continue') {
+        const currentUrl = encodeURIComponent(window.location.pathname + window.location.search);
+        const loginUrl = `${this.loginUrl}&redirect=${currentUrl}&message=${encodeURIComponent(message)}`;
+        window.location.href = loginUrl;
+    }
+
+    clearAuthData() {
+        localStorage.removeItem('authToken');
+        sessionStorage.removeItem('authToken');
+        this.authToken = null;
+        this.currentDriver = null;
+        this.isAuthenticated = false;
     }
 
     getAuthToken() {
@@ -861,6 +971,27 @@ class DriverDashboard {
         container.style.zIndex = '9999';
         document.body.appendChild(container);
         return container;
+    }
+
+    playNotificationSound() {
+        // Play notification sound for trip requests
+        try {
+            const audio = new Audio('/static/sounds/notification.mp3');
+            audio.play().catch(e => console.log('Could not play notification sound'));
+        } catch (error) {
+            console.log('Notification sound not available');
+        }
+    }
+
+    getStatusColor(status) {
+        const colors = {
+            'pending': 'warning',
+            'accepted': 'info',
+            'in_progress': 'primary',
+            'completed': 'success',
+            'cancelled': 'danger'
+        };
+        return colors[status] || 'secondary';
     }
 }
 

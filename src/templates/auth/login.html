@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Taxi Management System</title>
+    <link href="/static/libraries/bootstrap-5.3.3/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/libraries/fontawesome-6.7.1/css/all.min.css" rel="stylesheet">
+    <style>
+        .login-container {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .login-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+        .user-type-tabs .nav-link {
+            color: #6c757d;
+            border: none;
+            background: transparent;
+            padding: 10px 20px;
+            margin: 0 5px;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        .user-type-tabs .nav-link.active {
+            background: #007bff;
+            color: white;
+        }
+        .form-control {
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            padding: 12px 15px;
+            transition: all 0.3s ease;
+        }
+        .form-control:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+        .btn-login {
+            border-radius: 10px;
+            padding: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .alert {
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container d-flex align-items-center justify-content-center">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-6 col-lg-4">
+                    <div class="login-card p-4">
+                        <div class="text-center mb-4">
+                            <i class="fas fa-taxi fa-3x text-primary mb-3"></i>
+                            <h2 class="fw-bold">Welcome Back</h2>
+                            <p class="text-muted">Please sign in to your account</p>
+                        </div>
+
+                        <!-- User Type Selection -->
+                        <ul class="nav nav-pills user-type-tabs justify-content-center mb-4" id="userTypeTabs">
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-type="user">
+                                    <i class="fas fa-user me-1"></i>Passenger
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-type="driver">
+                                    <i class="fas fa-car me-1"></i>Driver
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-type="admin">
+                                    <i class="fas fa-user-shield me-1"></i>Admin
+                                </a>
+                            </li>
+                        </ul>
+
+                        <!-- Alert for messages -->
+                        {% if message %}
+                        <div class="alert alert-info" role="alert">
+                            <i class="fas fa-info-circle me-2"></i>{{ message }}
+                        </div>
+                        {% endif %}
+
+                        <div id="errorAlert" class="alert alert-danger d-none" role="alert">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            <span id="errorMessage"></span>
+                        </div>
+
+                        <!-- Login Form -->
+                        <form id="loginForm" action="/auth/api/login" method="POST">
+                            <input type="hidden" name="user_type" id="userType" value="{{ user_type or 'user' }}">
+                            <input type="hidden" name="redirect_url" value="{{ redirect_url or '' }}">
+
+                            <div class="mb-3">
+                                <label for="phone" class="form-label">
+                                    <i class="fas fa-phone me-1"></i>Phone Number
+                                </label>
+                                <input type="tel" class="form-control" id="phone" name="phone"
+                                       placeholder="Enter your phone number" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="password" class="form-label">
+                                    <i class="fas fa-lock me-1"></i>Password
+                                </label>
+                                <input type="password" class="form-control" id="password" name="password"
+                                       placeholder="Enter your password" required>
+                            </div>
+
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="rememberMe">
+                                <label class="form-check-label" for="rememberMe">
+                                    Remember me
+                                </label>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-login w-100 mb-3" id="loginBtn">
+                                <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                            </button>
+                        </form>
+
+                        <!-- Registration Link -->
+                        <div class="text-center">
+                            <p class="mb-0">Don't have an account?</p>
+                            <a href="#" id="registerLink" class="text-decoration-none fw-bold">
+                                Create Account
+                            </a>
+                        </div>
+
+                        <!-- Back to Home -->
+                        <div class="text-center mt-3">
+                            <a href="/" class="text-muted text-decoration-none">
+                                <i class="fas fa-arrow-left me-1"></i>Back to Home
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/libraries/bootstrap-5.3.3/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const userTypeTabs = document.querySelectorAll('#userTypeTabs .nav-link');
+            const userTypeInput = document.getElementById('userType');
+            const registerLink = document.getElementById('registerLink');
+            const loginForm = document.getElementById('loginForm');
+            const errorAlert = document.getElementById('errorAlert');
+            const errorMessage = document.getElementById('errorMessage');
+            const loginBtn = document.getElementById('loginBtn');
+
+            // Set initial user type from server
+            const initialType = '{{ user_type or "user" }}';
+            setActiveUserType(initialType);
+
+            // User type tab click handlers
+            userTypeTabs.forEach(tab => {
+                tab.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const userType = this.getAttribute('data-type');
+                    setActiveUserType(userType);
+                });
+            });
+
+            function setActiveUserType(userType) {
+                // Update active tab
+                userTypeTabs.forEach(tab => {
+                    tab.classList.remove('active');
+                    if (tab.getAttribute('data-type') === userType) {
+                        tab.classList.add('active');
+                    }
+                });
+
+                // Update hidden input
+                userTypeInput.value = userType;
+
+                // Update register link
+                if (userType === 'admin') {
+                    registerLink.style.display = 'none';
+                } else {
+                    registerLink.style.display = 'inline';
+                    registerLink.href = `/auth/register?type=${userType}`;
+                }
+
+                // Update URL without refresh
+                const url = new URL(window.location);
+                url.searchParams.set('type', userType);
+                window.history.pushState({}, '', url);
+            }
+
+            // Form submission
+            loginForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                const formData = new FormData(this);
+
+                // Show loading state
+                const originalText = loginBtn.innerHTML;
+                loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Signing In...';
+                loginBtn.disabled = true;
+
+                // Hide error alert
+                errorAlert.classList.add('d-none');
+
+                fetch('/auth/api/login', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (response.redirected) {
+                        // Login successful, redirect
+                        window.location.href = response.url;
+                    } else if (response.status === 401 || response.status === 403) {
+                        return response.json().then(data => {
+                            throw new Error(data.detail || 'Invalid credentials');
+                        });
+                    } else {
+                        throw new Error('Login failed');
+                    }
+                })
+                .catch(error => {
+                    // Show error
+                    errorMessage.textContent = error.message;
+                    errorAlert.classList.remove('d-none');
+
+                    // Reset button
+                    loginBtn.innerHTML = originalText;
+                    loginBtn.disabled = false;
+                });
+            });
+
+            // Remember me functionality
+            const rememberMe = document.getElementById('rememberMe');
+            const phoneInput = document.getElementById('phone');
+
+            // Load saved phone if remember me was checked
+            const savedPhone = localStorage.getItem('rememberedPhone');
+            if (savedPhone) {
+                phoneInput.value = savedPhone;
+                rememberMe.checked = true;
+            }
+
+            // Save/remove phone based on remember me
+            rememberMe.addEventListener('change', function() {
+                if (this.checked) {
+                    localStorage.setItem('rememberedPhone', phoneInput.value);
+                } else {
+                    localStorage.removeItem('rememberedPhone');
+                }
+            });
+
+            phoneInput.addEventListener('input', function() {
+                if (rememberMe.checked) {
+                    localStorage.setItem('rememberedPhone', this.value);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

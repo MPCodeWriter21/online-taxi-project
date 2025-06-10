@@ -2,24 +2,171 @@
 class AdminDashboard {
     constructor() {
         this.apiBaseUrl = '/admin/api';
+
+        // Authentication and permissions
+        this.authToken = null;
+        this.currentAdmin = null;
+        this.loginUrl = '/auth/login?type=admin';
+        this.isAuthenticated = false;
+
         this.init();
     }
 
     async init() {
+        // Check authentication first
+        const authResult = await this.checkAuthentication();
+        if (!authResult) {
+            this.redirectToLogin('You need to log in to access the admin dashboard');
+            return;
+        }
+
         await this.loadDashboardData();
         this.setupCharts();
         this.setupEventListeners();
     }
 
-    async loadDashboardData() {
+    async checkAuthentication() {
         try {
-            const response = await fetch(`${this.apiBaseUrl}/analytics/dashboard`, {
+            this.authToken = this.getAuthToken();
+
+            if (!this.authToken) {
+                console.log('No auth token found');
+                return false;
+            }
+
+            // Verify token with backend - using admin profile endpoint
+            const response = await fetch('/admin/api/profile/', {
                 headers: {
-                    'Authorization': `Bearer ${this.getAuthToken()}`
+                    'Authorization': `Bearer ${this.authToken}`
                 }
             });
 
+            if (response.status === 401 || response.status === 403) {
+                console.log('Authentication failed');
+                this.clearAuthData();
+                return false;
+            }
+
             if (response.ok) {
+                this.currentAdmin = await response.json();
+                this.isAuthenticated = true;
+                return true;
+            }
+
+            return false;
+        } catch (error) {
+            console.error('Authentication check failed:', error);
+            return false;
+        }
+    }
+
+    checkPermission(action) {
+        if (!this.isAuthenticated) {
+            this.redirectToLogin('Authentication required');
+            return false;
+        }
+
+        // Check if admin account is active
+        if (this.currentAdmin && this.currentAdmin.user && this.currentAdmin.user.status !== 'active') {
+            this.showNotification('Your account is not active. Please contact support.', 'error');
+            return false;
+        }
+
+        // Admin permissions based on access level
+        const adminActions = [
+            'view_dashboard', 'manage_users', 'manage_drivers', 'view_trips',
+            'view_analytics', 'manage_payments', 'view_profile'
+        ];
+
+        const superuserActions = [
+            'delete_users', 'manage_admins', 'system_settings'
+        ];
+
+        if (adminActions.includes(action)) {
+            return true;
+        }
+
+        if (superuserActions.includes(action)) {
+            if (this.currentAdmin && this.currentAdmin.access_level === 'superuser') {
+                return true;
+            }
+            this.showNotification('Superuser access required for this action', 'error');
+            return false;
+        }
+
+        this.showNotification('You do not have permission to perform this action', 'error');
+        return false;
+    }
+
+    async makeAuthenticatedRequest(url, options = {}) {
+        if (!this.isAuthenticated) {
+            this.redirectToLogin('Authentication required');
+            return null;
+        }
+
+        const defaultHeaders = {
+            'Authorization': `Bearer ${this.authToken}`,
+            'Content-Type': 'application/json'
+        };
+
+        const requestOptions = {
+            ...options,
+            headers: {
+                ...defaultHeaders,
+                ...options.headers
+            }
+        };
+
+        try {
+            const response = await fetch(url, requestOptions);
+
+            if (response.status === 401) {
+                this.handleAuthenticationError('Session expired. Please log in again.');
+                return null;
+            }
+
+            if (response.status === 403) {
+                this.showNotification('You do not have permission to perform this action', 'error');
+                return null;
+            }
+
+            return response;
+        } catch (error) {
+            console.error('API request failed:', error);
+            this.showNotification('Network error. Please check your connection.', 'error');
+            return null;
+        }
+    }
+
+    handleAuthenticationError(message) {
+        this.clearAuthData();
+        this.showNotification(message, 'error');
+        setTimeout(() => {
+            this.redirectToLogin(message);
+        }, 2000);
+    }
+
+    redirectToLogin(message = 'Please log in to continue') {
+        const currentUrl = encodeURIComponent(window.location.pathname + window.location.search);
+        const loginUrl = `${this.loginUrl}&redirect=${currentUrl}&message=${encodeURIComponent(message)}`;
+        window.location.href = loginUrl;
+    }
+
+    clearAuthData() {
+        localStorage.removeItem('authToken');
+        sessionStorage.removeItem('authToken');
+        this.authToken = null;
+        this.currentAdmin = null;
+        this.isAuthenticated = false;
+    }
+
+    async loadDashboardData() {
+        if (!this.checkPermission('view_dashboard')) return;
+
+        try {
+            const response = await this.makeAuthenticatedRequest(`${this.apiBaseUrl}/analytics/dashboard`);
+
+            if (response && response.ok) {
                 const data = await response.json();
                 this.updateDashboardStats(data);
             } else {
@@ -221,17 +368,14 @@ class AdminDashboard {
     }
 
     async loadUsers(page = 1, limit = 10) {
+        if (!this.checkPermission('manage_users')) return [];
+
         try {
-            const response = await fetch(
-                `${this.apiBaseUrl}/users?skip=${(page - 1) * limit}&limit=${limit}`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${this.getAuthToken()}`
-                    }
-                }
+            const response = await this.makeAuthenticatedRequest(
+                `${this.apiBaseUrl}/users?skip=${(page - 1) * limit}&limit=${limit}`
             );
 
-            if (response.ok) {
+            if (response && response.ok) {
                 return await response.json();
             }
         } catch (error) {
@@ -241,19 +385,17 @@ class AdminDashboard {
     }
 
     async loadDrivers(status = null, page = 1, limit = 10) {
+        if (!this.checkPermission('manage_drivers')) return [];
+
         let url = `${this.apiBaseUrl}/drivers?skip=${(page - 1) * limit}&limit=${limit}`;
         if (status) {
             url += `&approval_status=${status}`;
         }
 
         try {
-            const response = await fetch(url, {
-                headers: {
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                }
-            });
+            const response = await this.makeAuthenticatedRequest(url);
 
-            if (response.ok) {
+            if (response && response.ok) {
                 return await response.json();
             }
         } catch (error) {
@@ -263,22 +405,20 @@ class AdminDashboard {
     }
 
     async approveDriver(userId, approved = true) {
+        if (!this.checkPermission('manage_drivers')) return false;
+
         try {
-            const response = await fetch(
+            const response = await this.makeAuthenticatedRequest(
                 `${this.apiBaseUrl}/drivers/${userId}/approval`,
                 {
                     method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${this.getAuthToken()}`
-                    },
                     body: JSON.stringify({
                         approval_status: approved ? 'approved' : 'rejected'
                     })
                 }
             );
 
-            return response.ok;
+            return response && response.ok;
         } catch (error) {
             console.error('Error updating driver approval:', error);
             return false;

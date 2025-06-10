@@ -10,10 +10,23 @@ class UserDashboard {
         this.userLocation = null;
         this.selectedRating = 0;
 
+        // Authentication and permissions
+        this.authToken = null;
+        this.currentUser = null;
+        this.loginUrl = '/auth/login?type=user';
+        this.isAuthenticated = false;
+
         this.init();
     }
 
-    init() {
+    async init() {
+        // Check authentication first
+        const authResult = await this.checkAuthentication();
+        if (!authResult) {
+            this.redirectToLogin('You need to log in to access the user dashboard');
+            return;
+        }
+
         this.initializeMap();
         this.loadUserData();
         this.loadRecentTrips();
@@ -254,16 +267,137 @@ class UserDashboard {
         });
     }
 
-    async loadUserData() {
+    async checkAuthentication() {
         try {
+            this.authToken = this.getAuthToken();
+
+            if (!this.authToken) {
+                console.log('No auth token found');
+                return false;
+            }
+
+            // Verify token with backend
             const response = await fetch('/api/v1/users/profile/', {
                 headers: {
-                    'Authorization': `Bearer ${this.getAuthToken()}`
+                    'Authorization': `Bearer ${this.authToken}`
                 }
             });
 
+            if (response.status === 401 || response.status === 403) {
+                console.log('Authentication failed');
+                this.clearAuthData();
+                return false;
+            }
+
             if (response.ok) {
+                this.currentUser = await response.json();
+                this.isAuthenticated = true;
+                return true;
+            }
+
+            return false;
+        } catch (error) {
+            console.error('Authentication check failed:', error);
+            return false;
+        }
+    }
+
+    checkPermission(action) {
+        if (!this.isAuthenticated) {
+            this.redirectToLogin('Authentication required');
+            return false;
+        }
+
+        // Check if user account is active
+        if (this.currentUser && this.currentUser.status !== 'active') {
+            this.showNotification('Your account is not active. Please contact support.', 'error');
+            return false;
+        }
+
+        // User permissions - all authenticated users can perform basic actions
+        const userActions = [
+            'book_trip', 'cancel_trip', 'view_trips', 'rate_trip',
+            'manage_favorites', 'topup_wallet', 'view_profile'
+        ];
+
+        if (userActions.includes(action)) {
+            return true;
+        }
+
+        this.showNotification('You do not have permission to perform this action', 'error');
+        return false;
+    }
+
+    async makeAuthenticatedRequest(url, options = {}) {
+        if (!this.checkPermission('api_access')) {
+            return null;
+        }
+
+        const defaultHeaders = {
+            'Authorization': `Bearer ${this.authToken}`,
+            'Content-Type': 'application/json'
+        };
+
+        const requestOptions = {
+            ...options,
+            headers: {
+                ...defaultHeaders,
+                ...options.headers
+            }
+        };
+
+        try {
+            const response = await fetch(url, requestOptions);
+
+            if (response.status === 401) {
+                this.handleAuthenticationError('Session expired. Please log in again.');
+                return null;
+            }
+
+            if (response.status === 403) {
+                this.showNotification('You do not have permission to perform this action', 'error');
+                return null;
+            }
+
+            return response;
+        } catch (error) {
+            console.error('API request failed:', error);
+            this.showNotification('Network error. Please check your connection.', 'error');
+            return null;
+        }
+    }
+
+    handleAuthenticationError(message) {
+        this.clearAuthData();
+        this.showNotification(message, 'error');
+        setTimeout(() => {
+            this.redirectToLogin(message);
+        }, 2000);
+    }
+
+    redirectToLogin(message = 'Please log in to continue') {
+        const currentUrl = encodeURIComponent(window.location.pathname + window.location.search);
+        const loginUrl = `${this.loginUrl}&redirect=${currentUrl}&message=${encodeURIComponent(message)}`;
+        window.location.href = loginUrl;
+    }
+
+    clearAuthData() {
+        localStorage.removeItem('authToken');
+        sessionStorage.removeItem('authToken');
+        this.authToken = null;
+        this.currentUser = null;
+        this.isAuthenticated = false;
+    }
+
+    async loadUserData() {
+        if (!this.checkPermission('view_profile')) return;
+
+        try {
+            const response = await this.makeAuthenticatedRequest('/api/v1/users/profile/');
+
+            if (response && response.ok) {
                 const userData = await response.json();
+                this.currentUser = userData;
                 document.getElementById('userName').textContent = userData.first_name;
                 document.getElementById('walletBalance').textContent = userData.wallet_balance.toFixed(2);
                 document.getElementById('walletBalanceDetailed').textContent = userData.wallet_balance.toFixed(2);
@@ -274,14 +408,12 @@ class UserDashboard {
     }
 
     async loadRecentTrips() {
-        try {
-            const response = await fetch('/api/v1/users/trips/?limit=5', {
-                headers: {
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                }
-            });
+        if (!this.checkPermission('view_trips')) return;
 
-            if (response.ok) {
+        try {
+            const response = await this.makeAuthenticatedRequest('/api/v1/users/trips/?limit=5');
+
+            if (response && response.ok) {
                 const trips = await response.json();
                 this.displayRecentTrips(trips);
             }
@@ -313,14 +445,12 @@ class UserDashboard {
     }
 
     async loadUserStats() {
-        try {
-            const response = await fetch('/api/v1/users/stats/', {
-                headers: {
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                }
-            });
+        if (!this.checkPermission('view_profile')) return;
 
-            if (response.ok) {
+        try {
+            const response = await this.makeAuthenticatedRequest('/api/v1/users/stats/');
+
+            if (response && response.ok) {
                 const stats = await response.json();
                 document.querySelector('[data-stat="total-trips"]').textContent = stats.total_trips;
                 document.querySelector('[data-stat="total-spent"]').textContent = `$${stats.total_spent}`;
@@ -332,14 +462,12 @@ class UserDashboard {
     }
 
     async loadFavoriteLocations() {
-        try {
-            const response = await fetch('/api/v1/users/favorites/', {
-                headers: {
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                }
-            });
+        if (!this.checkPermission('manage_favorites')) return;
 
-            if (response.ok) {
+        try {
+            const response = await this.makeAuthenticatedRequest('/api/v1/users/favorites/');
+
+            if (response && response.ok) {
                 const favorites = await response.json();
                 this.displayFavoriteLocations(favorites);
             }
@@ -377,6 +505,8 @@ class UserDashboard {
     }
 
     async bookRide() {
+        if (!this.checkPermission('book_trip')) return;
+
         const bookBtn = document.getElementById('bookRideBtn');
         const originalText = bookBtn.innerHTML;
 
@@ -396,22 +526,18 @@ class UserDashboard {
                 discount_code: document.getElementById('discountCode').value || null
             };
 
-            const response = await fetch('/api/v1/users/trips/', {
+            const response = await this.makeAuthenticatedRequest('/api/v1/users/trips/', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                },
                 body: JSON.stringify(tripData)
             });
 
-            if (response.ok) {
+            if (response && response.ok) {
                 const trip = await response.json();
                 this.currentTrip = trip;
                 this.showTripStatus();
                 this.startTripPolling();
                 this.showNotification('Trip booked successfully! Looking for a driver...', 'success');
-            } else {
+            } else if (response) {
                 const error = await response.json();
                 this.showNotification(error.detail || 'Failed to book trip', 'error');
             }
@@ -485,14 +611,12 @@ class UserDashboard {
     }
 
     async checkActiveTrip() {
-        try {
-            const response = await fetch('/api/v1/users/trips/active/', {
-                headers: {
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                }
-            });
+        if (!this.checkPermission('view_trips')) return;
 
-            if (response.ok) {
+        try {
+            const response = await this.makeAuthenticatedRequest('/api/v1/users/trips/active/');
+
+            if (response && response.ok) {
                 const trip = await response.json();
                 if (trip) {
                     this.currentTrip = trip;
@@ -506,19 +630,17 @@ class UserDashboard {
     }
 
     startTripPolling() {
+        if (!this.checkPermission('view_trips')) return;
+
         if (this.tripPolling) {
             clearInterval(this.tripPolling);
         }
 
         this.tripPolling = setInterval(async () => {
             try {
-                const response = await fetch(`/api/v1/users/trips/${this.currentTrip.id}/`, {
-                    headers: {
-                        'Authorization': `Bearer ${this.getAuthToken()}`
-                    }
-                });
+                const response = await this.makeAuthenticatedRequest(`/api/v1/users/trips/${this.currentTrip.id}/`);
 
-                if (response.ok) {
+                if (response && response.ok) {
                     const updatedTrip = await response.json();
                     this.currentTrip = updatedTrip;
                     this.updateTripStatus();
@@ -535,19 +657,18 @@ class UserDashboard {
     }
 
     async cancelTrip() {
+        if (!this.checkPermission('cancel_trip')) return;
+
         if (!confirm('Are you sure you want to cancel this trip?')) {
             return;
         }
 
         try {
-            const response = await fetch(`/api/v1/users/trips/${this.currentTrip.id}/cancel/`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                }
+            const response = await this.makeAuthenticatedRequest(`/api/v1/users/trips/${this.currentTrip.id}/cancel/`, {
+                method: 'POST'
             });
 
-            if (response.ok) {
+            if (response && response.ok) {
                 this.showNotification('Trip cancelled successfully', 'success');
                 this.resetBookingForm();
             } else {
@@ -606,17 +727,15 @@ class UserDashboard {
     }
 
     async applyDiscountCode() {
+        if (!this.checkPermission('book_trip')) return;
+
         const code = document.getElementById('discountCode').value;
         if (!code) return;
 
         try {
-            const response = await fetch(`/api/v1/discounts/validate/${code}/`, {
-                headers: {
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                }
-            });
+            const response = await this.makeAuthenticatedRequest(`/api/v1/discounts/validate/${code}/`);
 
-            if (response.ok) {
+            if (response && response.ok) {
                 const discount = await response.json();
                 const discountInfo = document.getElementById('discountInfo');
                 discountInfo.style.display = 'block';
@@ -624,7 +743,7 @@ class UserDashboard {
                 discountInfo.className = 'text-success';
 
                 this.showNotification('Discount code applied successfully!', 'success');
-            } else {
+            } else if (response) {
                 const error = await response.json();
                 this.showNotification(error.detail || 'Invalid discount code', 'error');
             }
@@ -635,23 +754,21 @@ class UserDashboard {
     }
 
     async topupWallet() {
+        if (!this.checkPermission('topup_wallet')) return;
+
         const amount = parseFloat(document.getElementById('topupAmount').value);
         const paymentMethod = document.getElementById('paymentMethod').value;
 
         try {
-            const response = await fetch('/api/v1/users/wallet/topup/', {
+            const response = await this.makeAuthenticatedRequest('/api/v1/users/wallet/topup/', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                },
                 body: JSON.stringify({
                     amount: amount,
                     payment_method: paymentMethod
                 })
             });
 
-            if (response.ok) {
+            if (response && response.ok) {
                 const result = await response.json();
                 this.showNotification(`$${amount} added to wallet successfully!`, 'success');
 
@@ -665,7 +782,7 @@ class UserDashboard {
 
                 // Reset form
                 document.getElementById('topupForm').reset();
-            } else {
+            } else if (response) {
                 const error = await response.json();
                 this.showNotification(error.detail || 'Failed to add money to wallet', 'error');
             }
@@ -695,6 +812,8 @@ class UserDashboard {
     }
 
     async submitTripRating() {
+        if (!this.checkPermission('rate_trip')) return;
+
         if (this.selectedRating === 0) {
             this.showNotification('Please select a rating', 'warning');
             return;
@@ -703,19 +822,15 @@ class UserDashboard {
         const comment = document.getElementById('tripComment').value;
 
         try {
-            const response = await fetch(`/api/v1/users/trips/${this.currentTrip.id}/rate/`, {
+            const response = await this.makeAuthenticatedRequest(`/api/v1/users/trips/${this.currentTrip.id}/rate/`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                },
                 body: JSON.stringify({
                     rating: this.selectedRating,
                     comment: comment
                 })
             });
 
-            if (response.ok) {
+            if (response && response.ok) {
                 this.showNotification('Thank you for your rating!', 'success');
 
                 // Close modal
@@ -739,6 +854,8 @@ class UserDashboard {
     }
 
     async addFavoriteLocation() {
+        if (!this.checkPermission('manage_favorites')) return;
+
         const name = prompt('Enter a name for this location:');
         if (!name) return;
 
@@ -749,12 +866,8 @@ class UserDashboard {
         const center = this.map.getCenter();
 
         try {
-            const response = await fetch('/api/v1/users/favorites/', {
+            const response = await this.makeAuthenticatedRequest('/api/v1/users/favorites/', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.getAuthToken()}`
-                },
                 body: JSON.stringify({
                     name: name,
                     address: address,
@@ -763,7 +876,7 @@ class UserDashboard {
                 })
             });
 
-            if (response.ok) {
+            if (response && response.ok) {
                 this.showNotification('Favorite location added!', 'success');
                 this.loadFavoriteLocations();
             } else {

@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Online Taxi System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .auth-container {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .auth-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 500px;
+        }
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo i {
+            font-size: 3rem;
+            color: #667eea;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-control {
+            border-radius: 10px;
+            border: 2px solid #e0e0e0;
+            padding: 12px 15px;
+            transition: all 0.3s ease;
+        }
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 30px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .user-type-tabs {
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 30px;
+        }
+        .user-type-tab {
+            padding: 10px 20px;
+            border: none;
+            background: none;
+            color: #666;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .user-type-tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        .driver-fields {
+            display: none;
+        }
+        .driver-fields.show {
+            display: block;
+        }
+        .alert {
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .form-text {
+            color: #666;
+            font-size: 0.875rem;
+        }
+        .loading {
+            display: none;
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="logo">
+                <i class="fas fa-taxi"></i>
+                <h2 class="mt-3 mb-0">Create Account</h2>
+                <p class="text-muted">Join our taxi service platform</p>
+            </div>
+
+            <!-- User Type Selection -->
+            <div class="user-type-tabs">
+                <button type="button" class="user-type-tab active" data-type="user">
+                    <i class="fas fa-user me-2"></i>Passenger
+                </button>
+                <button type="button" class="user-type-tab" data-type="driver">
+                    <i class="fas fa-car me-2"></i>Driver
+                </button>
+            </div>
+
+            <!-- Error/Success Messages -->
+            <div id="messageContainer"></div>
+
+            <form id="registerForm" action="/auth/api/register" method="post">
+                <input type="hidden" name="user_type" id="userType" value="{{ user_type or 'user' }}">
+
+                <!-- Basic Information -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="firstName" class="form-label">First Name</label>
+                            <input type="text" class="form-control" id="firstName" name="first_name" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="lastName" class="form-label">Last Name</label>
+                            <input type="text" class="form-control" id="lastName" name="last_name" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="phone" class="form-label">Phone Number</label>
+                    <input type="tel" class="form-control" id="phone" name="phone" required
+                           placeholder="+1234567890" pattern="^\+?[1-9]\d{1,14}$">
+                    <div class="form-text">Include country code (e.g., +1234567890)</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="email" class="form-label">Email Address</label>
+                    <input type="email" class="form-control" id="email" name="email" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" class="form-control" id="password" name="password" required minlength="6">
+                    <div class="form-text">Minimum 6 characters</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword" class="form-label">Confirm Password</label>
+                    <input type="password" class="form-control" id="confirmPassword" required minlength="6">
+                </div>
+
+                <!-- Driver Specific Fields -->
+                <div class="driver-fields" id="driverFields">
+                    <hr class="my-4">
+                    <h5 class="mb-3"><i class="fas fa-id-card me-2"></i>Driver Information</h5>
+
+                    <div class="form-group">
+                        <label for="licenseNumber" class="form-label">Driver's License Number</label>
+                        <input type="text" class="form-control" id="licenseNumber" name="license_number">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="vehicleMake" class="form-label">Vehicle Make</label>
+                                <input type="text" class="form-control" id="vehicleMake" name="vehicle_make" placeholder="Toyota, Honda, etc.">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="vehicleModel" class="form-label">Vehicle Model</label>
+                                <input type="text" class="form-control" id="vehicleModel" name="vehicle_model" placeholder="Camry, Civic, etc.">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="vehicleYear" class="form-label">Vehicle Year</label>
+                                <input type="number" class="form-control" id="vehicleYear" name="vehicle_year" min="2000" max="2024">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="licensePlate" class="form-label">License Plate</label>
+                                <input type="text" class="form-control" id="licensePlate" name="license_plate" placeholder="ABC-1234">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Driver registrations require admin approval before you can start accepting rides.
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 mb-3" id="submitBtn">
+                    <span class="submit-text">Create Account</span>
+                    <span class="loading">
+                        <i class="fas fa-spinner fa-spin me-2"></i>Creating Account...
+                    </span>
+                </button>
+
+                <div class="text-center">
+                    <span class="text-muted">Already have an account?</span>
+                    <a href="/auth/login" class="text-decoration-none" id="loginLink">Sign In</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Initialize form based on URL parameter
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const userType = urlParams.get('type') || '{{ user_type or "user" }}';
+
+            setUserType(userType);
+            updateLoginLink();
+        });
+
+        // User type switching
+        document.querySelectorAll('.user-type-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                const type = this.dataset.type;
+                setUserType(type);
+                updateLoginLink();
+            });
+        });
+
+        function setUserType(type) {
+            // Update active tab
+            document.querySelectorAll('.user-type-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.type === type);
+            });
+
+            // Update hidden input
+            document.getElementById('userType').value = type;
+
+            // Show/hide driver fields
+            const driverFields = document.getElementById('driverFields');
+            const driverInputs = driverFields.querySelectorAll('input');
+
+            if (type === 'driver') {
+                driverFields.classList.add('show');
+                driverInputs.forEach(input => input.required = true);
+            } else {
+                driverFields.classList.remove('show');
+                driverInputs.forEach(input => {
+                    input.required = false;
+                    input.value = '';
+                });
+            }
+
+            // Update submit button text
+            const submitText = document.querySelector('.submit-text');
+            if (type === 'driver') {
+                submitText.textContent = 'Register as Driver';
+            } else {
+                submitText.textContent = 'Create Account';
+            }
+        }
+
+        function updateLoginLink() {
+            const currentType = document.getElementById('userType').value;
+            const loginLink = document.getElementById('loginLink');
+            loginLink.href = `/auth/login?type=${currentType}`;
+        }
+
+        // Form validation and submission
+        const form = document.getElementById('registerForm');
+        const submitBtn = document.getElementById('submitBtn');
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            if (!validateForm()) {
+                return;
+            }
+
+            // Show loading state
+            submitBtn.disabled = true;
+            document.querySelector('.submit-text').style.display = 'none';
+            document.querySelector('.loading').style.display = 'inline';
+
+            // Submit form
+            const formData = new FormData(form);
+
+            fetch(form.action, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (response.redirected) {
+                    window.location.href = response.url;
+                } else if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error(text || 'Registration failed');
+                    });
+                }
+                return response.text();
+            })
+            .then(data => {
+                if (typeof data === 'string' && data.includes('<!DOCTYPE html>')) {
+                    // If we get HTML back, there was an error
+                    showMessage('Registration failed. Please check your information and try again.', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Registration error:', error);
+                showMessage(error.message || 'Registration failed. Please try again.', 'danger');
+            })
+            .finally(() => {
+                // Reset loading state
+                submitBtn.disabled = false;
+                document.querySelector('.submit-text').style.display = 'inline';
+                document.querySelector('.loading').style.display = 'none';
+            });
+        });
+
+        function validateForm() {
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const phone = document.getElementById('phone').value;
+
+            // Clear previous messages
+            document.getElementById('messageContainer').innerHTML = '';
+
+            // Validate passwords match
+            if (password !== confirmPassword) {
+                showMessage('Passwords do not match.', 'danger');
+                return false;
+            }
+
+            // Validate phone format
+            const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+            if (!phoneRegex.test(phone)) {
+                showMessage('Please enter a valid phone number with country code.', 'danger');
+                return false;
+            }
+
+            // Validate driver fields if driver type
+            const userType = document.getElementById('userType').value;
+            if (userType === 'driver') {
+                const requiredFields = ['licenseNumber', 'vehicleMake', 'vehicleModel', 'vehicleYear', 'licensePlate'];
+                for (let field of requiredFields) {
+                    if (!document.getElementById(field).value.trim()) {
+                        showMessage('Please fill in all driver information fields.', 'danger');
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        function showMessage(message, type) {
+            const container = document.getElementById('messageContainer');
+            const alertClass = type === 'danger' ? 'alert-danger' : 'alert-success';
+            const icon = type === 'danger' ? 'fa-exclamation-circle' : 'fa-check-circle';
+
+            container.innerHTML = `
+                <div class="alert ${alertClass}" role="alert">
+                    <i class="fas ${icon} me-2"></i>${message}
+                </div>
+            `;
+        }
+
+        // Real-time password validation
+        document.getElementById('confirmPassword').addEventListener('input', function() {
+            const password = document.getElementById('password').value;
+            const confirmPassword = this.value;
+
+            if (confirmPassword && password !== confirmPassword) {
+                this.setCustomValidity('Passwords do not match');
+            } else {
+                this.setCustomValidity('');
+            }
+        });
+
+        // Phone number formatting
+        document.getElementById('phone').addEventListener('input', function() {
+            let value = this.value.replace(/\D/g, '');
+            if (value && !value.startsWith('+')) {
+                value = '+' + value;
+            }
+            this.value = value;
+        });
+    </script>
+</body>
+</html>

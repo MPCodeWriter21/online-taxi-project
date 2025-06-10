@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse
 
 from app.core import templates
 
-router = APIRouter(tags=["driver-views"], prefix="/driver")
+router = APIRouter(tags=["driver-views"])
 
 
 @router.get("/", response_class=HTMLResponse)

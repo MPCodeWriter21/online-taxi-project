@@ -12,11 +12,6 @@ services:
       - postgres_data:/var/lib/postgresql/data
     env_file:
       - .env
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 60s
-      timeout: 10s
-      retries: 5
 
   web:
     build: src
@@ -37,8 +32,7 @@ services:
     volumes:
       - ./src:/app
     depends_on:
-      postgres:
-        condition: service_healthy
+      - postgres
     command: bash -c "dos2unix ./start.sh && bash ./start.sh"
 
   pgadmin:

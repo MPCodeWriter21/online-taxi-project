@@ -6,7 +6,7 @@ from rich.console import Console
 from fastapi.responses import HTMLResponse
 
 from .core import app, settings, templates
-from .routers import user_router, admin_router, driver_router
+from .routers import auth_router, user_router, admin_router, driver_router
 
 # yapf: enable
 
@@ -28,6 +28,7 @@ async def root(request: Request):
 
 # Include the routers in the app.
 app.include_router(router)
+app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(user_router)
 app.include_router(driver_router)
